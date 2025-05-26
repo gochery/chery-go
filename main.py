@@ -2366,14 +2366,28 @@ application.add_handler(
 
 # 🟠 أزرار غير نشطة
 from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
+from telegram import Update
+
+# ✅ تأكد من وجود هذا الاستيراد في الأعلى (قد يكون موجودًا سابقًا)
+from bot import application, cleanup_old_sessions  # عدّل اسم الملف إذا لزم
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     webhook_url = "https://61829baa-ef8a-43a7-ac92-7e23c19a1999-00-1gldto4cs1532.sisko.replit.dev/webhook"
+
     await application.initialize()
     await application.start()
     await application.bot.set_webhook(url=webhook_url)
     print("✅ Webhook تم تسجيله باستخدام lifespan")
+
+    # ✅ إضافة هذه السطور لتفعيل JobQueue
+    if application.job_queue:
+        application.job_queue.run_repeating(cleanup_old_sessions, interval=60 * 60)
+        print("✅ JobQueue تم تشغيلها")
+    else:
+        print("⚠️ job_queue غير مفعلة")
+
     yield
     await application.stop()
 

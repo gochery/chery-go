@@ -17,24 +17,28 @@ import logging
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
+# ✅ استيراد دالة تنظيف الجلسات
+from handlers.utility import cleanup_old_sessions  # عدّل هذا حسب موقع دالتك
+
 # ✅ تخزين كل اقتراحات المستخدمين
 suggestion_records = {}
 
+# ✅ إعداد السجلات
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    force=True  # ← هذا يُجبر تهيئة السجلات حتى لو تم إعدادها من قبل
+    force=True
 )
 
-# إعداد التوكن وتحديد المستخدمين المصرح لهم
+# ✅ إعداد التوكن
 API_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-# ✅ متغيرات البيانات
+# ✅ تهيئة المتغيرات
 df_admins = df_replies = df_branches = df_maintenance = df_parts = df_manual = df_independent = pd.DataFrame()
-ALL_USERS = set()  # ← لتخزين معرفات جميع المستخدمين الذين مروا على البوت
+ALL_USERS = set()
 user_sessions = {}
 
-# ✅ تحميل ملف Excel مرة واحدة فقط مع دعم all_users_log
+# ✅ تحميل بيانات Excel
 try:
     excel_data = pd.read_excel("bot_data.xlsx", sheet_name=None)
 
@@ -46,12 +50,11 @@ try:
     df_manual = excel_data["manual"]
     df_independent = excel_data["independent"]
 
-    # ✅ تحميل سجل المستخدمين
     if "all_users_log" in excel_data:
         df_users = excel_data["all_users_log"]
         ALL_USERS = set(df_users["user_id"].dropna().astype(int).tolist())
     else:
-        df_users = pd.DataFrame(columns=["user_id"])  # شيت جديد فارغ
+        df_users = pd.DataFrame(columns=["user_id"])
 
     AUTHORIZED_USERS = df_admins["manager_id"].dropna().astype(int).tolist()
     SUGGESTION_REPLIES = dict(zip(df_replies["key"], df_replies["reply"]))
@@ -63,10 +66,8 @@ except Exception as e:
     SUGGESTION_REPLIES = {}
     initial_branches = []
 
-# إعداد تطبيق FastAPI
+# ✅ تهيئة تطبيق FastAPI وتطبيق التلغرام
 app = FastAPI()
-
-# إنشاء تطبيق التلغرام وإدخال بيانات الفروع فيه
 application = Application.builder().token(API_TOKEN).build()
 application.bot_data["branches"] = initial_branches
 
@@ -2317,7 +2318,25 @@ async def webhook_handler(request: Request):
 @app.on_event("startup")
 async def on_startup():
     import requests
+
+    # ✅ استخدم رابط Render تلقائي أو رابط ثابت في حال لم يتوفر
     webhook_url = os.getenv("RENDER_EXTERNAL_URL") or "https://your-app-url.onrender.com/webhook"
+
+    # ✅ تسجيل Webhook في Telegram
     requests.get(f"https://api.telegram.org/bot{API_TOKEN}/setWebhook?url={webhook_url}")
+
+    # ✅ تهيئة التطبيق وتشغيله
     await application.initialize()
-    await application.start()  # ← هذا هو السطر المطلوب
+    await application.start()
+
+    # ✅ تفعيل JobQueue إذا كانت موجودة
+    if application.job_queue:
+        application.job_queue.run_repeating(cleanup_old_sessions, interval=60 * 60)
+        print("✅ JobQueue تم تشغيلها بنجاح")
+    else:
+        print("⚠️ job_queue غير مفعلة أو لم تُهيأ بعد")
+
+# ✅ اختياري للتشغيل المحلي (ليس مطلوبًا في Render)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)

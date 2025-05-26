@@ -68,7 +68,7 @@ app = FastAPI()
 application = Application.builder().token(API_TOKEN).build()
 application.bot_data["branches"] = initial_branches
 
-# ✅ 1. تعريف الدالة (يفضل وضعها أعلى الكود أو قبل بداية التطبيق)
+# ✅ 1. تعريف دالة تنظيف الجلسات
 async def cleanup_old_sessions(context: ContextTypes.DEFAULT_TYPE, max_age_minutes: int = 15):
     """🧹 يحذف الجلسات القديمة من user_sessions لتقليل الضغط"""
     now = datetime.now(timezone.utc)
@@ -85,12 +85,6 @@ async def cleanup_old_sessions(context: ContextTypes.DEFAULT_TYPE, max_age_minut
             removed += original_count
 
     logging.info(f"[CLEANUP] 🧹 تم تنظيف {removed} رسالة من الجلسات القديمة.")
-
-application.job_queue.run_repeating(
-    cleanup_old_sessions,
-    interval=3600,
-    first=0
-)
 
 def register_message(user_id, message_id, chat_id=None, context=None, skip_delete=False):
     if user_id not in user_sessions:

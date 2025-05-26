@@ -17,9 +17,6 @@ import logging
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
-# ✅ استيراد دالة تنظيف الجلسات
-from handlers.utility import cleanup_old_sessions  # عدّل هذا حسب موقع دالتك
-
 # ✅ تخزين كل اقتراحات المستخدمين
 suggestion_records = {}
 

@@ -86,7 +86,6 @@ async def cleanup_old_sessions(context: ContextTypes.DEFAULT_TYPE, max_age_minut
 
     logging.info(f"[CLEANUP] 🧹 تم تنظيف {removed} رسالة من الجلسات القديمة.")
 
-# ✅ 2. تسجيلها في job_queue (خارج الدالة تمامًا، عادة بعد application = Application.builder()...)
 application.job_queue.run_repeating(
     cleanup_old_sessions,
     interval=3600,
@@ -2320,14 +2319,14 @@ async def on_startup():
     requests.get(f"https://api.telegram.org/bot{API_TOKEN}/setWebhook?url={webhook_url}")
 
     await application.initialize()
-    await application.start()  # ← ضروري أن يأتي قبله
+    await application.start()
 
-    # ✅ هنا فقط يصبح job_queue جاهز
+    # ✅ تفعيل JobQueue بعد تشغيل التطبيق
     if application.job_queue:
         application.job_queue.run_repeating(cleanup_old_sessions, interval=60 * 60)
         print("✅ JobQueue تم تشغيلها")
     else:
-        print("⚠️ job_queue غير جاهزة")
+        print("⚠️ job_queue غير مفعلة أو غير جاهزة")
 
 # ✅ اختياري للتشغيل المحلي (ليس مطلوبًا في Render)
 if __name__ == "__main__":

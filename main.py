@@ -2367,7 +2367,6 @@ application.add_handler(
 # 🟠 أزرار غير نشطة
 from contextlib import asynccontextmanager
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     webhook_url = "https://61829baa-ef8a-43a7-ac92-7e23c19a1999-00-1gldto4cs1532.sisko.replit.dev/webhook"

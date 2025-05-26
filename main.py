@@ -2316,22 +2316,18 @@ async def webhook_handler(request: Request):
 async def on_startup():
     import requests
 
-    # ✅ استخدم رابط Render تلقائي أو رابط ثابت في حال لم يتوفر
     webhook_url = os.getenv("RENDER_EXTERNAL_URL") or "https://your-app-url.onrender.com/webhook"
-
-    # ✅ تسجيل Webhook في Telegram
     requests.get(f"https://api.telegram.org/bot{API_TOKEN}/setWebhook?url={webhook_url}")
 
-    # ✅ تهيئة التطبيق وتشغيله
     await application.initialize()
     await application.start()
 
-    # ✅ تفعيل JobQueue إذا كانت موجودة
+    # ✅ الآن فقط، بعد تشغيل البوت، يصبح job_queue مهيأً
     if application.job_queue:
         application.job_queue.run_repeating(cleanup_old_sessions, interval=60 * 60)
-        print("✅ JobQueue تم تشغيلها بنجاح")
+        print("✅ JobQueue تم تشغيلها")
     else:
-        print("⚠️ job_queue غير مفعلة أو لم تُهيأ بعد")
+        print("⚠️ job_queue غير متاحة")
 
 # ✅ اختياري للتشغيل المحلي (ليس مطلوبًا في Render)
 if __name__ == "__main__":

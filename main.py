@@ -2320,14 +2320,14 @@ async def on_startup():
     requests.get(f"https://api.telegram.org/bot{API_TOKEN}/setWebhook?url={webhook_url}")
 
     await application.initialize()
-    await application.start()
+    await application.start()  # ← ضروري أن يأتي قبله
 
-    # ✅ الآن فقط، بعد تشغيل البوت، يصبح job_queue مهيأً
+    # ✅ هنا فقط يصبح job_queue جاهز
     if application.job_queue:
         application.job_queue.run_repeating(cleanup_old_sessions, interval=60 * 60)
         print("✅ JobQueue تم تشغيلها")
     else:
-        print("⚠️ job_queue غير متاحة")
+        print("⚠️ job_queue غير جاهزة")
 
 # ✅ اختياري للتشغيل المحلي (ليس مطلوبًا في Render)
 if __name__ == "__main__":

@@ -709,10 +709,10 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
         if context.user_data.get(user_id_from_callback, {}).get("manual_sent"):
-        await query.answer("❌ لا يمكنك اختيار دليل آخر في نفس الاستعلام، يرجى استخدام الأمر /go من جديد.", show_alert=True)
-        return
+            await query.answer("❌ لا يمكنك اختيار دليل آخر في نفس الاستعلام، يرجى استخدام الأمر /go من جديد.", show_alert=True)
+            return
 
-    context.user_data[user_id_from_callback]["manual_sent"] = True
+        context.user_data[user_id_from_callback]["manual_sent"] = True
 
     try:
         old_msg_id = context.user_data.get(user_id_from_callback, {}).get("manual_msg_id")

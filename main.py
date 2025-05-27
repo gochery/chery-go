@@ -183,7 +183,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_block = f"`🧑‍🏫 عزيزي {user_name}`"
         delete_block = f"`⏳ سيتم حذف هذا التنبيه تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`"
 
-        # 🟢 الرسالة الهادئة - مستخدم جاء من خارج المجموعة
         if text in ["/start", "start", "go", "/go"] and "start=go" not in text:
             alert_message = (
                 "📣 يسعدنا اهتمامك بخدمات برنامج GO!\n\n"
@@ -191,7 +190,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "🔐 لضمان الخصوصية، نرجو الانضمام إلى المجموعة وكتابة  go هناك.\n\n"
                 "[👥 اضغط هنا للانضمام إلى مجموعة CHERY](https://t.me/CHERYKSA_group)"
             )
-        # 🔴 الرسالة الصارمة - مستخدم تطفل على زر انطلق لا يخصه
         else:
             alert_message = (
                 "🚫 عذرًا، لا يمكن الدخول من الخاص بهذه الطريقة.\n"
@@ -261,45 +259,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     })
 
     await log_event(update, "بدأ المستخدم التفاعل مع /go")
-
-    if update.message and "manualid_" in update.message.text:
-        try:
-            index_str = update.message.text.split("manualid_")[-1].strip()
-            index = int(index_str)
-            row = df_manual.iloc[index]
-            car_name = row["car_name"]
-            file_id = row["pdf_file_id"]
-        except:
-            msg = await update.message.reply_text("🚫 دليل هذه السيارة غير متاح أو الملف غير صالح.")
-            register_message(user_id, msg.message_id, chat_id, context)
-            return
-
-        now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-        delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
-
-        caption = (
-            f"🧑‍💼 مرحباً {user_name}\n"
-            f"📘 هذا هو دليل المالك للسيارة: ({car_name})\n"
-            f"⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)"
-        )
-
-        try:
-            msg = await update.message.reply_document(
-                document=file_id,
-                caption=caption,
-                parse_mode=constants.ParseMode.MARKDOWN
-            )
-            register_message(user_id, msg.message_id, chat_id, context)
-            return
-        except:
-            car_info = f"📘 {car_name}"
-            delete_note = "⏳ سيتم حذف هذا التنبيه تلقائيًا بعد 5 دقائق / 🇸🇦"
-            msg = await update.message.reply_text(
-                f"📂 عذرًا، لم يتم العثور على دليل المالك لهذه السيارة.\n{car_info}\n🚧 الدليل قيد التحديث وسيتم رفعه لاحقًا.\n{delete_note}",
-                parse_mode=constants.ParseMode.MARKDOWN
-            )
-            register_message(user_id, msg.message_id, chat_id, context)
-            return
 
     if chat_id < 0:
         context.bot_data[user_id] = {
@@ -379,7 +338,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_message(user_id, msg1.message_id, chat_id, context)
     register_message(user_id, msg2.message_id, chat_id, context)
 
-    # ✅ إلغاء صلاحية الجلسة بعد أول استخدام
     context.user_data[user_id]["session_valid"] = False
 
 async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -196,6 +196,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     context.user_data.setdefault(user_id, {})
+    context.user_data[user_id]["manual_sent"] = False
 
     global ALL_USERS
     if user_id not in ALL_USERS:
@@ -794,9 +795,10 @@ async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return
 
+    # ✅ السماح بالدخول مرة جديدة إذا عاد المستخدم من /go
     if context.user_data.get(user_id, {}).get("manual_sent"):
         await query.answer(
-            "❌ لا يمكنك تحميل الدليل مرتين في نفس الجلسة – استخدم الأمر /go لبدء جلسة جديدة.",
+            f"❌ عزيزي {query.from_user.full_name}، لا يمكنك فتح هذا الاستعلام مرتين بنفس الجلسة. الرجاء استخدام /go مره اخرى.",
             show_alert=True
         )
         return
@@ -812,6 +814,23 @@ async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_name = query.from_user.full_name
     now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
     delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
+
+    # ✅ إذا لم يوجد PDF، نعرض رسالة تنبيه محترمة ومنسقة
+    if pd.isna(file_id) or str(file_id).strip() == "":
+        caption = (
+            f"`🧑‍💼 استعلام خاص بـ {user_name}`\n\n"
+            f"📘 نعتذر، دليل المالك لهذه السيارة غير متوفر حالياً.\n"
+            f"📂 سيتم رفع الملف قريباً بعد التحديث.\n\n"
+            f"`⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`"
+        )
+        try:
+            await context.bot.delete_message(chat_id=query.message.chat_id, message_id=query.message.message_id)
+        except:
+            pass
+        msg = await query.message.reply_text(caption, parse_mode=constants.ParseMode.MARKDOWN)
+        register_message(user_id, msg.message_id, query.message.chat_id, context)
+        await log_event(update, f"📂 لا يوجد ملف PDF لـ {car_name}", level="error")
+        return
 
     caption = (
         f"`🧑‍💼 استعلام خاص بـ {user_name}`\n\n"

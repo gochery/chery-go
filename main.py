@@ -666,8 +666,8 @@ async def show_manual_car_list(update: Update, context: ContextTypes.DEFAULT_TYP
     delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
 
     try:
-        car_names = df_manual["car_name"].dropna().unique().tolist()
-        car_names.sort()
+        # ✅ يتم أخذ السيارات من Excel بنفس الترتيب الموجود في الشيت
+        car_names = df_manual["car_name"].dropna().drop_duplicates().tolist()
     except Exception as e:
         await log_event(update, f"❌ فشل في تحميل قائمة السيارات من Excel: {e}", level="error")
         msg = await query.message.reply_text("📂 تعذر تحميل قائمة دليل المالك حالياً.")
@@ -732,7 +732,7 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         msg = await query.message.reply_text(caption, parse_mode=constants.ParseMode.MARKDOWN)
         register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
-        await log_event(update, f"📂 لا توجد صورة غلاف لـ {car_name}", level="error")
+        await log_event(update, f"📂 لا توجد بيانات لـ {car_name}", level="error")
         return
 
     image_url = match["cover_image"].values[0]
@@ -741,14 +741,26 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
     delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
 
+    if pd.isna(image_url) or image_url.strip() == "":
+        caption = (
+            f"`🧑‍💼 استعلام خاص بـ {user_name}`\n\n"
+            f"📘 نعتذر، دليل المالك لهذه السيارة غير متوفر حالياً.\n"
+            f"📂 سيتم رفع الملف قريباً بعد التحديث.\n\n"
+            f"`⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`"
+        )
+        msg = await query.message.reply_text(caption, parse_mode=constants.ParseMode.MARKDOWN)
+        register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
+        await log_event(update, f"📂 لا يوجد غلاف لـ {car_name}", level="error")
+        return
+
     caption = (
         f"`🧑‍💼 استعلام خاص بـ {user_name}`\n\n"
         f"📜 دليل المالك للسيارة ({car_name})\n\n"
         f"`⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`"
     )
 
-    keyboard = [[InlineKeyboardButton("📘 استعراض دليل المالك", callback_data=f"viewmanual_{index}_{user_id_from_callback}")]]
-
+    keyboard = [[InlineKeyboardButton("📘 استعراض دليل المالك", callback_data=f"openpdf_{index}_{user_id_from_callback}")]]
+    
     try:
         msg = await context.bot.send_photo(
             chat_id=query.message.chat_id,
@@ -807,7 +819,6 @@ async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"`⏳ سيتم حذف هذا الملف تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`"
     )
 
-    # حذف رسالة الغلاف والزر بعد الاستخدام
     try:
         await context.bot.delete_message(chat_id=query.message.chat_id, message_id=query.message.message_id)
     except:
@@ -821,7 +832,7 @@ async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode=constants.ParseMode.MARKDOWN
         )
         register_message(user_id, msg.message_id, query.message.chat_id, context)
-        context.user_data[user_id]["manual_sent"] = True  # منع التكرار فقط في نفس الجلسة
+        context.user_data[user_id]["manual_sent"] = True
         await log_event(update, f"📘 تم إرسال ملف دليل {car_name}")
     except Exception as e:
         await log_event(update, f"❌ فشل في إرسال دليل PDF لـ {car_name}: {e}", level="error")

@@ -708,11 +708,11 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(f"❌ هذا الاستعلام خاص بـ {requester.first_name} {requester.last_name} - استخدم الأمر /go", show_alert=True)
         return
 
-    if context.user_data.get(user_id_from_callback, {}).get("manual_selected"):
+        if context.user_data.get(user_id_from_callback, {}).get("manual_sent"):
         await query.answer("❌ لا يمكنك اختيار دليل آخر في نفس الاستعلام، يرجى استخدام الأمر /go من جديد.", show_alert=True)
         return
 
-    context.user_data.setdefault(user_id_from_callback, {})["manual_selected"] = True
+    context.user_data[user_id_from_callback]["manual_sent"] = True
 
     try:
         old_msg_id = context.user_data.get(user_id_from_callback, {}).get("manual_msg_id")
@@ -778,7 +778,6 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await query.message.reply_text("📂 فشل في إرسال الغلاف. يرجى المحاولة لاحقاً.")
         register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
 
-    context.user_data[user_id_from_callback].pop("manual_selected", None)
     context.user_data[user_id_from_callback].pop("manual_viewed", None)
 
 async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE):

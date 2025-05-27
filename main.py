@@ -2101,7 +2101,7 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
         return
 
     if query.data == "clear_sessions":
-        removed_count = cleanup_old_sessions()
+        removed_count = cleanup_old_sessions(context)
         await query.answer("🧼 تم تنفيذ التنظيف", show_alert=False)
         await query.message.edit_text(
             f"🧹 تم تنظيف الجلسات المؤقتة.\n📌 عدد الرسائل المحذوفة: {removed_count}",

@@ -1733,8 +1733,10 @@ async def handle_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ✅ رسالة المستخدم
     user_caption = (
         f"\u200F📣 *رد من برنامج GO:*\n\n"
-        f"\u200F📝 *اقتراحك:*\n```{original_text.strip()}```\n\n"
-        f"\u200F💬 *رد المشرف:*\n```{reply_text.strip()}```\n\n"
+        f"\u200F📝 *اقتراحك:*\n"
+        f"```{original_text.strip()}```\n\n"
+        f"\u200F💬 *رد المشرف:*\n"
+        f"```{reply_text.strip()}```\n\n"
         f"\u200F🤖 *شكرًا لمساهمتك معنا.*"
     )
 
@@ -1742,7 +1744,7 @@ async def handle_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_caption = (
         f"\u200F📣 *رد من برنامج GO:*\n\n"
         f"\u200F👤 `{user_name}`\n"
-        f"\u200F🆔 `{user_id}`\n"
+        f"\u200F🆔 {user_id}\n"
         f"\u200F🏘️ \u202B{group_name}\u202C\n"
         f"\u200F🔢 `{group_id}`\n"
         + (f"\u200F📎 يحتوي على وسائط\n" if has_media else "") + "\n"
@@ -1908,7 +1910,7 @@ async def submit_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
     admin_caption = (
         f"\u200F📣 *رد من برنامج GO:*\n\n"
         f"\u200F👤 `{user_name}`\n"
-        f"\u200F🆔 `{user_id}`\n"
+        f"\u200F🆔 {user_id}\n"
         f"\u200F🏘️ \u202B{group_name}\u202C\n"
         f"\u200F🔢 `{group_id}`\n"
         + (f"\u200F📎 يحتوي على وسائط\n" if has_media else "") + "\n"

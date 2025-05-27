@@ -166,18 +166,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
-    started_properly = update.message and (
-        update.message.text.startswith("/start go") or "manualid_" in update.message.text
-    )
-
-    allowed_manual = update.message and "manualid_" in update.message.text.lower() and context.user_data.get(user_id, {}).get("allow_manualid")
-
-    if chat.type == "private" and not allowed_manual and (
-        not context.user_data.get(user_id, {}).get("session_valid")
-    ) and user_id not in AUTHORIZED_USERS:
-
+    if chat.type == "private" and not context.user_data.get(user_id, {}).get("session_valid") and user_id not in AUTHORIZED_USERS:
         text = update.message.text.strip().lower() if update.message else ""
-        
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
         user_block = f"`🧑‍🏫 عزيزي {user_name}`"
@@ -193,7 +183,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             alert_message = (
                 "🚫 عذرًا، لا يمكن الدخول من الخاص بهذه الطريقة.\n"
-                "🔐 هذه الخدمة مخصصة فقط لمن بدأ الجلسة من المجموعة بنفسة ولضمان الخصوصية.\n"
+                "🔐 هذه الخدمة مخصصة فقط لمن بدأ الجلسة من المجموعة بنفسه.\n"
                 "✳️ نرجو العودة إلى المجموعة وكتابة كلمة go يدويًا لإعادة التفعيل."
             )
 
@@ -752,11 +742,7 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"`⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`"
     )
 
-    context.user_data[user_id_from_callback]["allow_manualid"] = True
-
-    bot_username = context.bot.username
-    link = f"https://t.me/{bot_username}?start=manualid_{index}"
-    keyboard = [[InlineKeyboardButton("📘 استعراض دليل المالك", url=link)]]
+    keyboard = [[InlineKeyboardButton("📘 استعراض دليل المالك", callback_data=f"viewmanual_{index}_{user_id_from_callback}")]]
 
     try:
         msg = await context.bot.send_photo(
@@ -767,14 +753,13 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
+        context.user_data[user_id_from_callback]["manual_msg_id"] = msg.message_id
         await log_event(update, f"✅ تم عرض غلاف دليل {car_name}")
     except Exception as e:
         await log_event(update, f"❌ خطأ أثناء إرسال الغلاف لـ {car_name}: {e}", level="error")
         msg = await query.message.reply_text("📂 فشل في إرسال الغلاف. يرجى المحاولة لاحقاً.")
         register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
 
-    # ✅ تفريغ بيانات الجلسة بعد الانتهاء
-    # حذف فقط المفاتيح المؤقتة دون تفريغ كل الجلسة
     context.user_data[user_id_from_callback].pop("manual_selected", None)
     context.user_data[user_id_from_callback].pop("manual_viewed", None)
 
@@ -810,6 +795,7 @@ async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE)
         caption = (
             f"`🧑‍💼 استعلام خاص بـ {user_name}`\n\n"
             f"📘 نعتذر، دليل المالك لهذه السيارة غير متوفر حالياً.\n"
+            f"📜 دليل المالك للسيارة ({car_name})\n\n"
             f"📂 سيتم رفع الملف قريباً بعد التحديث.\n\n"
             f"`⏳ سيتم حذف هذا الاستعلام تلقائياً خلال 5 دقائق ({delete_time} / 🇸🇦)`"
         )
@@ -820,23 +806,18 @@ async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     index = match.index[0]
-    bot_username = context.bot.username
-    link = f"https://t.me/{bot_username}?start=manualid_{index}"
-
     user_name = query.from_user.full_name
     now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
     delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
 
     caption = (
         f"`🧑‍💼 استعلام خاص بـ {user_name}`\n\n"
-        f"📘 لعرض دليل المالك سيتم نقلك للمحادثة الخاصة.\n"
-        f"يرجى الضغط على الزر بالأسفل لبدء العملية 👇\n\n"
+        f"📜 دليل المالك للسيارة ({car_name})\n\n"
+        f"📘 لعرض دليل المالك، اضغط الزر بالأسفل.\n"
         f"`⏳ سيتم حذف هذا الاستعلام تلقائياً خلال 5 دقائق ({delete_time} / 🇸🇦)`"
     )
 
-    context.user_data[user_id_from_callback]["allow_manualid"] = True
-
-    keyboard = [[InlineKeyboardButton("📘 استعراض دليل المالك", url=link)]]
+    keyboard = [[InlineKeyboardButton("📘 استعراض دليل المالك", callback_data=f"openpdf_{index}_{user_id_from_callback}")]]
 
     try:
         msg = await query.message.reply_text(
@@ -845,14 +826,12 @@ async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
-        await log_event(update, f"✅ تم توجيه {user_name} إلى الخاص لـ {car_name}")
+        await log_event(update, f"✅ تم توجيه {user_name} إلى فتح PDF لـ {car_name}")
     except Exception as e:
-        await log_event(update, f"❌ فشل في إرسال زر الانتقال لـ {car_name}: {e}", level="error")
-        msg = await query.message.reply_text("📂 حدث خطأ أثناء إرسال الرابط.")
+        await log_event(update, f"❌ فشل في إرسال زر عرض PDF لـ {car_name}: {e}", level="error")
+        msg = await query.message.reply_text("📂 حدث خطأ أثناء إرسال الزر.")
         register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
 
-    # ✅ إنهاء الجلسة بعد إتمام العملية
-    # حذف فقط المفاتيح المؤقتة دون تفريغ كل الجلسة
     context.user_data[user_id_from_callback].pop("manual_selected", None)
     context.user_data[user_id_from_callback].pop("manual_viewed", None)
 

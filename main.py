@@ -647,7 +647,7 @@ async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
-async def handle_manual(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def show_manual_car_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data.split("_")
     user_id = int(data[1])
@@ -660,36 +660,41 @@ async def handle_manual(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await log_event(update, f"فتح قائمة دليل المالك")
+    await log_event(update, "📘 فتح قائمة دليل المالك")
 
     now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
     delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
 
-    cars = [
-        "Tiggo 2 PRO 1.0 Turbo",
-        "TIGGO 4 PRO 1.5 Turbo",
-        "Arrizo 5 PRO CVT 1.5L",
-        "Arrizo 6 PRO Turbo 1.5L",
-        "Tiggo 7 PRO 1.5L",
-        "Tiggo 8 PRO GDI 1.6L",
-        "Tiggo 8 Plus TCL 2.0 T",
-        "Tiggo 8 Pro Max 2.0 TGDI",
-        "Arrizo 8 1.6 Turbo",
-        "Tiggo 7 Pro Max 1.6 T1E DCT"
+    try:
+        car_names = df_manual["car_name"].dropna().unique().tolist()
+        car_names.sort()
+    except Exception as e:
+        await log_event(update, f"❌ فشل في تحميل قائمة السيارات من Excel: {e}", level="error")
+        msg = await query.message.reply_text("📂 تعذر تحميل قائمة دليل المالك حالياً.")
+        register_message(user_id, msg.message_id, query.message.chat_id, context)
+        return
+
+    keyboard = [
+        [InlineKeyboardButton(car, callback_data=f"manualcar_{car.replace(' ', '_')}_{user_id}")]
+        for car in car_names
     ]
-    keyboard = [[InlineKeyboardButton(car, callback_data=f"manualcar_{car.replace(' ', '_')}_{user_id}")] for car in cars]
 
-    text = f"📘 اختر فئة السيارة للاطلاع على دليل المالك:\n\n`⏳ سيتم حذف هذا الاستعلام تلقائياً خلال 5 دقائق ({delete_time} / 🇸🇦)`"
-
-    msg = await query.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode=constants.ParseMode.MARKDOWN
+    text = (
+        "📘 اختر فئة السيارة للاطلاع على دليل المالك:\n\n"
+        f"`⏳ سيتم حذف هذا الاستعلام تلقائياً خلال 5 دقائق ({delete_time} / 🇸🇦)`"
     )
 
-    register_message(user_id, msg.message_id, query.message.chat_id, context)
-    context.user_data[user_id]['manual_msg_id'] = msg.message_id
-    context.user_data[user_id]['last_message_id'] = msg.message_id
+    try:
+        msg = await query.message.edit_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode=constants.ParseMode.MARKDOWN
+        )
+        register_message(user_id, msg.message_id, query.message.chat_id, context)
+        context.user_data[user_id]['manual_msg_id'] = msg.message_id
+        context.user_data[user_id]['last_message_id'] = msg.message_id
+    except Exception as e:
+        await log_event(update, f"❌ فشل في إرسال قائمة دليل المالك: {e}", level="error")
 
 async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -766,74 +771,61 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
-    user_id_from_callback = int(parts[-1])
-    car_name = "_".join(parts[1:-1]).replace("_", " ")
+    index = int(parts[1])
+    user_id = int(parts[2])
 
-    if query.from_user.id != user_id_from_callback:
-        requester = await context.bot.get_chat(user_id_from_callback)
+    if query.from_user.id != user_id:
+        requester = await context.bot.get_chat(user_id)
         await query.answer(
             f"❌ هذا الاستعلام خاص بـ {requester.first_name} {requester.last_name} - استخدم الأمر /go",
             show_alert=True
         )
         return
 
-    if context.user_data.get(user_id_from_callback, {}).get("manual_viewed"):
+    if context.user_data.get(user_id, {}).get("manual_sent"):
         await query.answer(
-            "❌ لا يمكنك استعراض الدليل مرتين في نفس الاستعلام – استخدم الأمر /go من جديد.",
+            "❌ لا يمكنك تحميل الدليل مرتين في نفس الجلسة – استخدم الأمر /go لبدء جلسة جديدة.",
             show_alert=True
         )
         return
 
-    context.user_data[user_id_from_callback]["manual_viewed"] = True
-
-    match = df_manual[df_manual["car_name"].str.strip() == car_name.strip()]
-    if match.empty:
-        user_name = query.from_user.full_name
-        now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-        delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
-
-        caption = (
-            f"`🧑‍💼 استعلام خاص بـ {user_name}`\n\n"
-            f"📘 نعتذر، دليل المالك لهذه السيارة غير متوفر حالياً.\n"
-            f"📜 دليل المالك للسيارة ({car_name})\n\n"
-            f"📂 سيتم رفع الملف قريباً بعد التحديث.\n\n"
-            f"`⏳ سيتم حذف هذا الاستعلام تلقائياً خلال 5 دقائق ({delete_time} / 🇸🇦)`"
-        )
-
-        msg = await query.message.reply_text(caption, parse_mode=constants.ParseMode.MARKDOWN)
-        register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
-        await log_event(update, f"📂 لا يوجد دليل PDF مرفوع لـ {car_name}", level="error")
+    try:
+        row = df_manual.iloc[index]
+        car_name = row["car_name"]
+        file_id = row["pdf_file_id"]
+    except:
+        await query.answer("❌ تعذر تحميل الملف – غير متوفر أو بيانات غير صالحة.", show_alert=True)
         return
 
-    index = match.index[0]
     user_name = query.from_user.full_name
     now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
     delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
 
     caption = (
         f"`🧑‍💼 استعلام خاص بـ {user_name}`\n\n"
-        f"📜 دليل المالك للسيارة ({car_name})\n\n"
-        f"📘 لعرض دليل المالك، اضغط الزر بالأسفل.\n"
-        f"`⏳ سيتم حذف هذا الاستعلام تلقائياً خلال 5 دقائق ({delete_time} / 🇸🇦)`"
+        f"📘 دليل المالك للسيارة: {car_name}\n\n"
+        f"`⏳ سيتم حذف هذا الملف تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`"
     )
 
-    keyboard = [[InlineKeyboardButton("📘 استعراض دليل المالك", callback_data=f"openpdf_{index}_{user_id_from_callback}")]]
+    # حذف رسالة الغلاف والزر بعد الاستخدام
+    try:
+        await context.bot.delete_message(chat_id=query.message.chat_id, message_id=query.message.message_id)
+    except:
+        pass
 
     try:
-        msg = await query.message.reply_text(
-            caption,
-            parse_mode=constants.ParseMode.MARKDOWN,
-            reply_markup=InlineKeyboardMarkup(keyboard)
+        msg = await context.bot.send_document(
+            chat_id=query.message.chat_id,
+            document=file_id,
+            caption=caption,
+            parse_mode=constants.ParseMode.MARKDOWN
         )
-        register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
-        await log_event(update, f"✅ تم توجيه {user_name} إلى فتح PDF لـ {car_name}")
+        register_message(user_id, msg.message_id, query.message.chat_id, context)
+        context.user_data[user_id]["manual_sent"] = True  # منع التكرار فقط في نفس الجلسة
+        await log_event(update, f"📘 تم إرسال ملف دليل {car_name}")
     except Exception as e:
-        await log_event(update, f"❌ فشل في إرسال زر عرض PDF لـ {car_name}: {e}", level="error")
-        msg = await query.message.reply_text("📂 حدث خطأ أثناء إرسال الزر.")
-        register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
-
-    context.user_data[user_id_from_callback].pop("manual_selected", None)
-    context.user_data[user_id_from_callback].pop("manual_viewed", None)
+        await log_event(update, f"❌ فشل في إرسال دليل PDF لـ {car_name}: {e}", level="error")
+        await query.message.reply_text("📂 تعذر إرسال الملف. حاول لاحقاً.")
 
 async def send_part_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -2208,9 +2200,9 @@ application.add_handler(CallbackQueryHandler(show_store_list, pattern=r"^show_st
 application.add_handler(CallbackQueryHandler(set_city, pattern=r"^setcity_.*_\d+$"))
 
 # 🟢 دليل المالك
-application.add_handler(CallbackQueryHandler(handle_manual, pattern=r"^manual_\d+$"))
+application.add_handler(CallbackQueryHandler(show_manual_car_list, pattern="^manual_"))
 application.add_handler(CallbackQueryHandler(handle_manualcar, pattern=r"^manualcar_.*_\d+$"))
-application.add_handler(CallbackQueryHandler(handle_manualdfcar, pattern=r"^manualdfcar_.*_\d+$"))
+application.add_handler(CallbackQueryHandler(handle_manualdfcar, pattern="^openpdf_"))
 
 # 🟢 نظام الاقتراحات (نسخة مصححة ومتوافقة مع الهيكل الجديد)
 application.add_handler(CallbackQueryHandler(send_suggestion, pattern=r"^send_suggestion$"))

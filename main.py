@@ -1642,7 +1642,7 @@ async def send_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🆔 رقم المستخدم: <code>{user_id}</code>\n"
         f"🏘️ المجموعة: {group_name}\n"
         f"🔢 رقم المجموعة: <code>{group_id}</code>\n"
-        "╰───────────╯"
+        "╰─────────╯"
     )
 
     keyboard = InlineKeyboardMarkup([

@@ -86,14 +86,6 @@ async def cleanup_old_sessions(context: ContextTypes.DEFAULT_TYPE, max_age_minut
 
     logging.info(f"[CLEANUP] 🧹 تم تنظيف {removed} رسالة من الجلسات القديمة.")
 
-# ✅ دالة تجديد Webhook كل 6 ساعات
-async def refresh_webhook(context: ContextTypes.DEFAULT_TYPE):
-    """🔁 يقوم بتحديث Webhook تلقائيًا لضمان استمرارية الاتصال مع Telegram"""
-    import requests
-    webhook_url = os.getenv("RENDER_EXTERNAL_URL") or "https://chery-go.onrender.com/webhook"
-    response = requests.get(f"https://api.telegram.org/bot{API_TOKEN}/setWebhook?url={webhook_url}")
-    logging.info(f"[WEBHOOK REFRESH] تم تحديث Webhook تلقائيًا - الحالة: {response.status_code}")
-
 def register_message(user_id, message_id, chat_id=None, context=None, skip_delete=False):
     if user_id not in user_sessions:
         user_sessions[user_id] = []
@@ -2276,7 +2268,7 @@ async def webhook_handler(request: Request):
 async def on_startup():
     import requests
 
-    webhook_url = os.getenv("RENDER_EXTERNAL_URL") or "https://chery-go.onrender.com/webhook"
+    webhook_url = os.getenv("RENDER_EXTERNAL_URL") or "https://your-app-url.onrender.com/webhook"
     requests.get(f"https://api.telegram.org/bot{API_TOKEN}/setWebhook?url={webhook_url}")
 
     await application.initialize()
@@ -2285,11 +2277,9 @@ async def on_startup():
     # ✅ تفعيل JobQueue بعد تشغيل التطبيق
     if application.job_queue:
         application.job_queue.run_repeating(cleanup_old_sessions, interval=60 * 60)
-        application.job_queue.run_repeating(refresh_webhook, interval=6 * 60 * 60)
-        print("✅ JobQueue تم تشغيلها مع تجديد Webhook تلقائيًا")
+        print("✅ JobQueue تم تشغيلها")
     else:
         print("⚠️ job_queue غير مفعلة أو غير جاهزة")
-
 
 # ✅ اختياري للتشغيل المحلي (ليس مطلوبًا في Render)
 if __name__ == "__main__":

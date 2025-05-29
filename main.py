@@ -2268,13 +2268,15 @@ async def webhook_handler(request: Request):
 async def on_startup():
     import requests
 
-    webhook_url = os.getenv("RENDER_EXTERNAL_URL") or "https://your-app-url.onrender.com/webhook"
-    requests.get(f"https://api.telegram.org/bot{API_TOKEN}/setWebhook?url={webhook_url}")
+    # 🔄 تحديث Webhook مرة واحدة عند تشغيل التطبيق (اختياري لكن مفيد)
+    webhook_url = os.getenv("RENDER_EXTERNAL_URL") or "https://chery-go.onrender.com/webhook"
+    response = requests.get(f"https://api.telegram.org/bot{API_TOKEN}/setWebhook?url={webhook_url}")
+    print(f"🔗 Webhook set: {response.status_code}")
 
     await application.initialize()
     await application.start()
 
-    # ✅ تفعيل JobQueue بعد تشغيل التطبيق
+    # ✅ تفعيل JobQueue (تنظيف الجلسات القديمة فقط)
     if application.job_queue:
         application.job_queue.run_repeating(cleanup_old_sessions, interval=60 * 60)
         print("✅ JobQueue تم تشغيلها")

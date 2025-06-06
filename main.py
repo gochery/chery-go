@@ -1567,10 +1567,34 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await log_event(update, "اختيار فئة السيارة لقطع الغيار")
         return
 
+    elif action == "carpart":
+    # حفظ الفئة المختارة في user_data
+        selected_car = data[1].replace('_', ' ')  # مثال: "batteries" أو "Chery_Tiggo_5" تحوّل إلى "Chery Tiggo 5"
+        context.user_data[user_id]["selected_car"] = selected_car
+
+    # عرض أزرار تصنيفات القطع بعد اختيار الفئة
+        keyboard = [
+            [InlineKeyboardButton("🔋 البطاريات", callback_data=f"catpart_batteries_{user_id}")],
+            [InlineKeyboardButton("🧴 المنتجات المساعدة", callback_data=f"catpart_assist_{user_id}")]
+        ]
+
+        try:
+            await query.edit_message_text(
+                f"🚗 تم اختيار الفئة: {selected_car}\n\n"
+                "اختر تصنيف القطع المطلوب:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        except telegram.error.BadRequest as e:
+            if "Message is not modified" not in str(e):
+                raise
+
+        await log_event(update, f"اختيار تصنيف قطع للسيارة: {selected_car}")
+        return
+
     elif action == "catpart":
         keyword = data[1].strip().lower()
 
-        # ✅ استخدم الفئة المحفوظة بدلًا من استخراجها من البيانات
+    # استخدام الفئة المحفوظة
         selected_car = context.user_data[user_id].get("selected_car", "غير معروف")
         if selected_car == "غير معروف":
             await query.answer("⚠️ حدث خطأ: لم يتم تحديد فئة السيارة.", show_alert=True)

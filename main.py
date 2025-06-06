@@ -602,7 +602,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if context.user_data[user_id]["search_attempts"] > 3:
             await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث المتاحة.
-    🔁 ابدأ من جديد باستخدام /go")
+    🔁 ابدأ من جديد باستخدام /go") 
             context.user_data[user_id].clear()
             return
 

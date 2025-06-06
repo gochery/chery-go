@@ -828,8 +828,26 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data[user_id]["action"] = "parts"
     context.user_data[user_id]["search_attempts"] = 0  # ✅ إعادة تعيين العداد عند كل اختيار فئة
 
+    # 🧠 التصنيفات الرئيسية للقطع الاستهلاكية
+    part_categories = {
+        "🧴 الزيوت": "زيت",
+        "🌀 الفلاتر": "فلتر",
+        "🔋 البطاريات": "بطارية",
+        "🔌 البواجي": "بواجي",
+        "🧼 التنظيف": "منتج",
+        "⚙️ السيور": "سير",
+        "🛞 الفحمات": "فحمات",
+        "💧 سوائل النقل": "سائل ناقل",
+    }
+
+    keyboard = [
+        [InlineKeyboardButton(name, callback_data=f"catpart_{keyword}_{user_id}")]
+        for name, keyword in part_categories.items()
+    ]
+
     msg = await query.edit_message_text(
-        f"🔧 أدخل اسم القطعة أو رقمها الآن لفئة: {car}\n🧪 لديك 3 محاولات استعلام فقط ضمن هذه الفئة"
+        f"🔧 اختر تصنيف القطع لفئة: {car}",
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
     register_message(user_id, msg.message_id, query.message.chat_id, context)
     await log_event(update, f"اختار فئة قطع الغيار: {car}")
@@ -1522,7 +1540,42 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await log_event(update, "اختيار فئة السيارة لقطع الغيار")
         return
-    
+
+    elif query.data.startswith("catpart_"):
+        _, keyword, user_id = query.data.split("_")
+        user_id = int(user_id)
+        selected_car = context.user_data[user_id].get("selected_car")
+
+        filtered_df = df_parts[df_parts["Station No"] == selected_car]
+        matches = filtered_df[filtered_df["Station Name"].astype(str).str.startswith(keyword, na=False)]
+
+        if matches.empty:
+            await query.answer("❌ لا توجد نتائج ضمن هذا التصنيف.", show_alert=True)
+            return
+
+        now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
+        delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
+        footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
+
+        user_name = query.from_user.full_name
+
+        for i, row in matches.iterrows():
+            part_name_value = row.get("Station Name", "غير معروف")
+            part_number_value = row.get("Part No", "غير معروف")
+
+            text = f"""<code>🧑‍💼 استعلام خاص بـ {user_name}</code>\n\n🚗 <b>الفئة:</b> {selected_car}\n🔹 <b>اسم القطعة:</b> {part_name_value}\n🔹 <b>رقم القطعة:</b> {part_number_value}\n\n📌 تم العثور على نتائج بناءً على التصنيف""" + footer
+
+            keyboard = []
+            if pd.notna(row.get("Image")):
+                keyboard.append([InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")])
+
+            msg = await query.message.reply_text(
+                text, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None, parse_mode=ParseMode.HTML
+           )
+           register_message(user_id, msg.message_id, query.message.chat_id, context)
+
+       await log_event(update, f"✅ استعلام تصنيفي: {keyword} ضمن {selected_car}")
+   
     elif action == "maintenance":
         context.user_data[user_id]["action"] = "maintenance"
         cars = df_maintenance["car_type"].dropna().unique().tolist()
@@ -1534,7 +1587,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         register_message(user_id, msg.message_id, query.message.chat_id, context)
         await log_event(update, "فتح قائمة صيانة دورية")
         return
-
+   
     elif action == "suggestion":
         context.user_data[user_id]["action"] = "suggestion"
         msg = await query.edit_message_text("✉️ يرجى كتابة اقتراحك أو ملاحظتك أدناه:")

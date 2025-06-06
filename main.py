@@ -596,67 +596,68 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get(user_id, {}).get("action") == "parts" and message.text:
         part_name = message.text.strip().lower()
 
-        if part_name == "🔁":
-            reselect_count = context.user_data[user_id].get("reselect_count", 0)
-            if reselect_count >= 2:
-                await message.reply_text("🚫 لا يمكنك إعادة اختيار الفئة أكثر من مرتين في نفس الجلسة.")
-                return
+    # 🔁 منع إعادة اختيار الفئة - فقط نسمح بمحاولات بحث متعددة
+        context.user_data[user_id].setdefault("search_attempts", 0)
+        context.user_data[user_id]["search_attempts"] += 1
 
-            car_categories = df_parts["Station No"].dropna().unique().tolist()
-            keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories]
-            msg = await message.reply_text("🔁 اختر فئة جديدة للسيارة:", reply_markup=InlineKeyboardMarkup(keyboard))
+        if context.user_data[user_id]["search_attempts"] > 3:
+            await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث المتاحة.
+    🔁 ابدأ من جديد باستخدام /go")
+            context.user_data[user_id].clear()
+            return
+
+        selected_car = context.user_data[user_id].get("selected_car")
+
+        if not selected_car:
+            msg = await message.reply_text("❗ لم يتم اختيار فئة السيارة.")
             register_message(user_id, msg.message_id, chat.id, context)
             return
 
-    selected_car = context.user_data[user_id].get("selected_car")
-
-    if not selected_car:
-        msg = await message.reply_text("❗ لم يتم اختيار فئة السيارة.")
-        register_message(user_id, msg.message_id, chat.id, context)
-        return
-
     # تصفية الصفوف الخاصة بفئة السيارة
-    filtered_df = df_parts[df_parts["Station No"] == selected_car]
+       filtered_df = df_parts[df_parts["Station No"] == selected_car]
 
-    # الأعمدة التي نريد البحث فيها
-    columns_to_search = ["Station Name", "Part No"]
+    # الأعمدة التي نريد البحث فيها — حسب بنية ملف PARTS
+       columns_to_search = ["Station Name", "Part No"]
 
-    # البحث عن القطعة في الصفوف الخاصة بالفئة فقط
-    matches = filtered_df[filtered_df[columns_to_search].astype(str).apply(lambda row: row.str.contains(part_name, case=False, na=False)).any(axis=1)]
+       def match_row(row):
+           return row.str.contains(part_name, case=False, na=False).any()
 
-    if matches.empty:
-        msg = await message.reply_text("❌ لم يتم العثور على نتائج ضمن فئة السيارة المحددة.")
-        register_message(user_id, msg.message_id, chat.id, context)
-        return
+    # البحث داخل الصفوف الخاصة بالفئة فقط
+       matches = filtered_df[filtered_df[columns_to_search].astype(str).apply(match_row, axis=1)]
 
-    now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-    delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
-    footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
+       if matches.empty:
+           msg = await message.reply_text("❌ لم يتم العثور على نتائج ضمن فئة السيارة المحددة.")
+           register_message(user_id, msg.message_id, chat.id, context)
+           return
 
-    user_name = update.effective_user.full_name
+       now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
+       delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
+       footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
 
-    for i, row in matches.iterrows():
-        part_info_lines = []
-        for col in columns_to_search:
-            val = row[col]
-            if pd.notna(val) and str(val).strip():
-                part_info_lines.append(f"🔹 <b>{col}</b>: {val}")
-        part_info = "\n".join(part_info_lines)
+       user_name = update.effective_user.full_name
+       remaining = 3 - context.user_data[user_id]["search_attempts"]
 
-        text = f"`🧑‍💼 خاص بـ {user_name}`\n\n🚗 <b>الفئة:</b> {selected_car}\n{part_info}" + footer
+       for i, row in matches.iterrows():
+           part_info_lines = []
+           for col in columns_to_search:
+               val = row[col]
+               if pd.notna(val) and str(val).strip():
+                   part_info_lines.append(f"🔹 <b>{col}</b>: {val}")
+           part_info = "\n".join(part_info_lines)
 
-        keyboard = []
-        if pd.notna(row.get("Image")):
-            keyboard.append([InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")])
-        msg = await message.reply_text(
-            text, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None, parse_mode=ParseMode.HTML
-        )
-        register_message(user_id, msg.message_id, chat.id, context)
+           text = f"`🧑‍💼 خاص بـ {user_name}`\n\n🚗 <b>الفئة:</b> {selected_car}\n{part_info}\n\n📌 تبقّى لك: ({remaining} من 3) محاولات" + footer
 
-    await log_event(update, f"✅ بحث دقيق ضمن {selected_car}: {part_name}")
-    context.user_data[user_id]["action"] = None
-    register_message(user_id, message.message_id, chat.id, context)
-    return
+           keyboard = []
+           if pd.notna(row.get("Image")):
+               keyboard.append([InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")])
+           msg = await message.reply_text(
+               text, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None, parse_mode=ParseMode.HTML
+           )
+           register_message(user_id, msg.message_id, chat.id, context)
+
+       await log_event(update, f"✅ بحث دقيق ضمن {selected_car}: {part_name}")
+       register_message(user_id, message.message_id, chat.id, context)
+       return
 
 async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

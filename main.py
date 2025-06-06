@@ -1571,10 +1571,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             msg = await query.message.reply_text(
                 text, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None, parse_mode=ParseMode.HTML
-           )
-           register_message(user_id, msg.message_id, query.message.chat_id, context)
+            )
+            register_message(user_id, msg.message_id, query.message.chat_id, context)
 
-       await log_event(update, f"✅ استعلام تصنيفي: {keyword} ضمن {selected_car}")
+        await log_event(update, f"✅ استعلام تصنيفي: {keyword} ضمن {selected_car}")
    
     elif action == "maintenance":
         context.user_data[user_id]["action"] = "maintenance"

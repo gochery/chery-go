@@ -426,6 +426,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ✅ تعريف action بشكل آمن
     action = context.user_data.get(admin_id, {}).get("action")
 
+    # ✅ تعريف اسم السيارة بشكل آمن
+    selected_car = context.user_data.get("car", "غير معروف")
+
+    # ✅ استخراج اسم القطعة أو النص المدخل
+    part_name = ""
+    if message and message.text:
+        part_name = message.text.strip()
+    elif update.callback_query and update.callback_query.data:
+        part_name = update.callback_query.data.strip()
+
+    # ✅ تسجيل العملية
+    await log_event(update, f"✅ بحث دقيق ضمن {selected_car}: {part_name}")
+
     # ✅ حذف مشرف
     if action == "awaiting_admin_removal":
         try:
@@ -1565,21 +1578,17 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         filtered_df = df_parts[df_parts["Station No"] == selected_car]
 
-    # توليد كلمات بحث متعددة بصيغ الجمع والمفرد (مبسطة)
-        search_variants = [
+    # كلمات البحث المرادفة
+        search_variants = list(set([
             keyword,
             keyword + "ات" if not keyword.endswith("ات") else keyword[:-2],
             keyword.replace("ي", "ى") if "ي" in keyword else keyword,
-            keyword.replace("ى", "ي") if "ى" in keyword else keyword,
-            keyword  # تكرار للكلمة بدون تغيير (لضمان)
-    ]
-    # اجعلها فريدة
-        search_variants = list(set(search_variants))
+            keyword.replace("ى", "ي") if "ى" in keyword else keyword
+        ]))
 
-    # بناء pattern regex للبحث بجميع الكلمات في نفس الوقت (case insensitive)
+    # بناء pattern regex للبحث في Station Name
         pattern = "|".join(re.escape(term) for term in search_variants)
 
-    # البحث في العمود "Station Name"
         matches = filtered_df[
             filtered_df["Station Name"]
             .astype(str)
@@ -1611,11 +1620,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             keyboard = []
-            if pd.notna(row.get("Image")):
-                keyboard.append([InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")])
-
-            msg = await query.message.reply_text(
-                text, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None, parse_mode=ParseMode.HTML
+                msg = await query.message.reply_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
+                parse_mode=ParseMode.HTML
             )
             register_message(user_id, msg.message_id, query.message.chat_id, context)
 

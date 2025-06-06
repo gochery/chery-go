@@ -1516,12 +1516,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=InlineKeyboardMarkup(keyboard)
            )
             register_message(user_id, msg.message_id, query.message.chat_id, context)
-         except telegram.error.BadRequest as e:
+        except telegram.error.BadRequest as e:
              if "Message is not modified" not in str(e):
                  raise  # فقط تجاهل الخطأ هذا، والباقي اظهره
 
-         await log_event(update, "اختيار فئة السيارة لقطع الغيار")
-         return
+        await log_event(update, "اختيار فئة السيارة لقطع الغيار")
+        return
     
     elif action == "maintenance":
         context.user_data[user_id]["action"] = "maintenance"

@@ -1547,7 +1547,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         selected_car = context.user_data[user_id].get("selected_car")
 
         filtered_df = df_parts[df_parts["Station No"] == selected_car]
-        matches = filtered_df[filtered_df["Station Name"].astype(str).str.startswith(keyword, na=False)]
+        matches = filtered_df[
+            filtered_df["Station Name"]
+            .astype(str)
+            .str.strip()
+            .str.contains(f"^{keyword}|\\s{keyword}", case=False, na=False)
+       ]
 
         if matches.empty:
             await query.answer("❌ لا توجد نتائج ضمن هذا التصنيف.", show_alert=True)

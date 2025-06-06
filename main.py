@@ -644,7 +644,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     part_info_lines.append(f"🔹 <b>{col}</b>: {val}")
             part_info = "\n".join(part_info_lines)
 
-            text = f"`🧑‍💼 خاص بـ {user_name}`\n\n🚗 <b>الفئة:</b> {selected_car}\n{part_info}\n\n📌 تبقّى لك: ({remaining} من 3) محاولات" + footer
+            part_name_value = row.get("Station Name", "غير معروف")
+            part_number_value = row.get("Part No", "غير معروف")
+
+            text = f"""<code>🧑‍💼 استعلام خاص بـ {user_name}</code>
+
+            🚗 <b>الفئة:</b> {selected_car}
+            🔹 <b>اسم القطعة:</b> {part_name_value}
+            🔹 <b>رقم القطعة:</b> {part_number_value}
+
+            📌 تبقّى لك: ({remaining} من 3) محاولات""" + footer
 
             keyboard = []
             if pd.notna(row.get("Image")):
@@ -1502,7 +1511,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "consumable":
         car_categories = df_parts["Station No"].dropna().unique().tolist()
         keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories]
-        keyboard.append([InlineKeyboardButton("🔁 إعادة اختيار الفئة", callback_data=f"reselectcar_{user_id}")])
         context.user_data[user_id]["reselect_count"] = 0
         msg = await query.edit_message_text("🚗 اختر فئة السيارة لاستعلام القطع:", reply_markup=InlineKeyboardMarkup(keyboard))
         register_message(user_id, msg.message_id, query.message.chat_id, context)

@@ -594,41 +594,55 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ✅ استعلام قطع غيار
     if context.user_data.get(user_id, {}).get("action") == "parts" and message.text:
-        part_name = message.text.strip().lower()
+    part_name = message.text.strip().lower()
 
-        def row_matches(row):
-            return any(part_name in str(cell).lower() for cell in row)
+    if part_name == "🔁":
+        reselect_count = context.user_data[user_id].get("reselect_count", 0)
+        if reselect_count >= 2:
+            await message.reply_text("🚫 لا يمكنك إعادة اختيار الفئة أكثر من مرتين في نفس الجلسة.")
+            return
 
-        results = df_parts[df_parts.apply(row_matches, axis=1)]
-
-        if results.empty:
-            msg = await message.reply_text("❌ لم يتم العثور على نتائج. تأكد من كتابة الاسم أو الرقم بشكل صحيح.")
-            register_message(user_id, msg.message_id, chat.id, context)
-            await log_event(update, f"بحث عن قطعة غير موجودة: {part_name}")
-        else:
-            now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-            delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
-            footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
-
-            for i, row in results.iterrows():
-                text = f"""🔧 <b>اسم القطعة:</b> {row['Station Name']}\n🧾 <b>رقم القطعة:</b> {row['Part No']}\n🏷️ <b>الفئة:</b> {row['Station No']}""" + footer
-
-                keyboard = []
-                if pd.notna(row["Image"]):
-                    keyboard.append([InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")])
-
-                msg = await message.reply_text(
-                    text,
-                    reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
-                    parse_mode=ParseMode.HTML
-                )
-                register_message(user_id, msg.message_id, chat.id, context)
-
-            await log_event(update, f"✅ عرض نتائج بحث عن قطعة: {part_name}")
-
-        context.user_data[user_id]["action"] = None
-        register_message(user_id, message.message_id, chat.id, context)
+        cars = [col for col in df_parts.columns if col not in ["Station Name", "Part No", "Station No", "Image"]]
+        keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in cars]
+        msg = await message.reply_text("🔁 اختر فئة جديدة للسيارة:", reply_markup=InlineKeyboardMarkup(keyboard))
+        register_message(user_id, msg.message_id, chat.id, context)
         return
+
+    selected_car = context.user_data[user_id].get("selected_car")
+
+    if not selected_car or selected_car not in df_parts.columns:
+        msg = await message.reply_text("❗ لم يتم اختيار فئة السيارة أو أنها غير مدعومة.")
+        register_message(user_id, msg.message_id, chat.id, context)
+        return
+
+    matches = df_parts[df_parts[selected_car].astype(str).str.contains(part_name, case=False, na=False)]
+
+    if matches.empty:
+        msg = await message.reply_text("❌ لم يتم العثور على نتائج ضمن فئة السيارة المحددة.")
+        register_message(user_id, msg.message_id, chat.id, context)
+        return
+
+    now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
+    delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
+    footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
+
+    user_name = update.effective_user.full_name
+
+    for i, row in matches.iterrows():
+        part_info = str(row[selected_car])
+        text = f"`🧑‍💼 خاص بـ {user_name}`\n\n🔧 <b>الفئة:</b> {selected_car}\n📦 <b>المعلومة:</b> {part_info}" + footer
+        keyboard = []
+        if pd.notna(row.get("Image")):
+            keyboard.append([InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")])
+        msg = await message.reply_text(
+            text, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None, parse_mode=ParseMode.HTML
+        )
+        register_message(user_id, msg.message_id, chat.id, context)
+
+    await log_event(update, f"✅ بحث دقيق ضمن {selected_car}: {part_name}")
+    context.user_data[user_id]["action"] = None
+    register_message(user_id, message.message_id, chat.id, context)
+    return
 
 async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -779,6 +793,25 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
 
     context.user_data[user_id_from_callback].pop("manual_viewed", None)
+
+async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data.split("_")
+    user_id = int(data[-1])
+
+    if query.from_user.id != user_id:
+        requester = await context.bot.get_chat(user_id)
+        await query.answer(f"❌ هذا الاستعلام خاص بـ {requester.first_name} {requester.last_name} - استخدم الأمر /go", show_alert=True)
+        return
+
+    car = " ".join(data[1:-1])
+    context.user_data[user_id]["selected_car"] = car
+    context.user_data[user_id]["action"] = "parts"
+    context.user_data[user_id]["reselect_count"] = context.user_data[user_id].get("reselect_count", 0) + 1
+
+    msg = await query.edit_message_text(f"🔧 أدخل اسم القطعة أو رقمها الآن لفئة: {car}\n(أرسل '🔁' لإعادة اختيار الفئة)")
+    register_message(user_id, msg.message_id, query.message.chat_id, context)
+    await log_event(update, f"اختار فئة قطع الغيار: {car}")
 
 async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1453,12 +1486,15 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     elif action == "consumable":
-        context.user_data[user_id]["action"] = "parts"
-        msg = await query.edit_message_text("أدخل اسم القطعة أو رقمها 🔧 :")
+        cars = [col for col in df_parts.columns if col not in ["Station Name", "Part No", "Station No", "Image"]]
+        keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in cars]
+        keyboard.append([InlineKeyboardButton("🔁 إعادة اختيار الفئة", callback_data=f"reselectcar_{user_id}")])
+        context.user_data[user_id]["reselect_count"] = 0
+        msg = await query.edit_message_text("🚗 اختر فئة السيارة لاستعلام القطع:", reply_markup=InlineKeyboardMarkup(keyboard))
         register_message(user_id, msg.message_id, query.message.chat_id, context)
-        await log_event(update, "اختار استعلام قطع غيار استهلاكية")
+        await log_event(update, "اختيار فئة السيارة لقطع الغيار")
         return
-
+    
     elif action == "maintenance":
         context.user_data[user_id]["action"] = "maintenance"
         cars = df_maintenance["car_type"].dropna().unique().tolist()
@@ -2221,6 +2257,7 @@ application.add_handler(CallbackQueryHandler(send_part_image, pattern=r"^part_im
 
 # 🟢 القائمة الرئيسية: صيانة - قطع غيار - دليل - مراكز - اقتراح
 application.add_handler(CallbackQueryHandler(button, pattern=r"^(parts|maintenance|consumable|external|suggestion)_\d+$"))
+application.add_handler(CallbackQueryHandler(select_car_for_parts, pattern="^carpart_"))
 
 # 🟢 مراكز الخدمة الرسمية والمستقلة
 application.add_handler(CallbackQueryHandler(handle_service_centers, pattern=r"^service_\d+$"))

@@ -1620,7 +1620,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             keyboard = []
-                msg = await query.message.reply_text(
+            msg = await query.message.reply_text(
                 text,
                 reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
                 parse_mode=ParseMode.HTML

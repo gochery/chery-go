@@ -1554,7 +1554,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     elif action == "catpart":
-        keyword = data[1]
+        keyword = data[1].strip().lower()
         user_id = int(data[2])
         selected_car = context.user_data[user_id].get("selected_car")
 
@@ -1564,13 +1564,27 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         filtered_df = df_parts[df_parts["Station No"] == selected_car]
 
-    # ✅ دعم تصنيفات متعددة باستخدام الكلمة المفتاحية
+    # توليد كلمات بحث متعددة بصيغ الجمع والمفرد (مبسطة)
+        search_variants = [
+            keyword,
+            keyword + "ات" if not keyword.endswith("ات") else keyword[:-2],
+            keyword.replace("ي", "ى") if "ي" in keyword else keyword,
+            keyword.replace("ى", "ي") if "ى" in keyword else keyword,
+            keyword  # تكرار للكلمة بدون تغيير (لضمان)
+    ]
+    # اجعلها فريدة
+        search_variants = list(set(search_variants))
+
+    # بناء pattern regex للبحث بجميع الكلمات في نفس الوقت (case insensitive)
+        pattern = "|".join(re.escape(term) for term in search_variants)
+
+    # البحث في العمود "Station Name"
         matches = filtered_df[
             filtered_df["Station Name"]
             .astype(str)
-            .str.strip()
-            .str.contains(keyword, case=False, na=False)
-        ]
+            .str.lower()
+            .str.contains(pattern, regex=True, na=False)
+    ]
 
         if matches.empty:
             await query.answer("❌ لا توجد نتائج ضمن هذا التصنيف.", show_alert=True)

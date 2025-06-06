@@ -830,10 +830,9 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data.setdefault(user_id, {})
     context.user_data[user_id]["selected_car"] = car
     context.user_data[user_id]["action"] = "parts"
-    context.user_data[user_id].setdefault("used_parts", set())  # تتبع ما تم استخدامه
+    context.user_data[user_id].setdefault("used_parts", set())
     context.user_data[user_id]["search_attempts"] = 0
 
-    # التصنيفات الرئيسية للقطع الاستهلاكية
     part_categories = {
         "🧴 الزيوت": "زيت",
         "🌀 الفلاتر": "فلتر",
@@ -846,23 +845,25 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
     }
 
     used_parts = context.user_data[user_id]["used_parts"]
-
-    # إنشاء الأزرار فقط للفئات التي لم يتم استخدامها بعد
     keyboard = [
         [InlineKeyboardButton(name, callback_data=f"catpart_{keyword}_{user_id}")]
         for name, keyword in part_categories.items() if keyword not in used_parts
     ]
 
-    msg_text = f"🔧 اختر تصنيف القطع لفئة: {car}"
+    new_text = f"🔧 اختر تصنيف القطع لفئة: {car}"
     if not keyboard:
-        msg_text += "\n✅ تم استخدام جميع التصنيفات المتاحة."
+        new_text += "\n✅ تم استخدام جميع التصنيفات المتاحة."
 
-    msg = await query.edit_message_text(
-        msg_text,
-        reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None
-    )
+    # 🔐 تجنّب التعديل إذا لم يتغير النص أو الأزرار
+    current_text = query.message.text
+    current_markup = query.message.reply_markup
 
-    register_message(user_id, msg.message_id, query.message.chat_id, context)
+    new_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+
+    if current_text != new_text or current_markup != new_markup:
+        msg = await query.edit_message_text(new_text, reply_markup=new_markup)
+        register_message(user_id, msg.message_id, query.message.chat_id, context)
+
     await log_event(update, f"اختار فئة قطع الغيار: {car}")
     await query.answer()
 

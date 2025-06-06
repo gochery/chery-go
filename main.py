@@ -1563,7 +1563,13 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             part_name_value = row.get("Station Name", "غير معروف")
             part_number_value = row.get("Part No", "غير معروف")
 
-            text = f"""<code>🧑‍💼 استعلام خاص بـ {user_name}</code>\n\n🚗 <b>الفئة:</b> {selected_car}\n🔹 <b>اسم القطعة:</b> {part_name_value}\n🔹 <b>رقم القطعة:</b> {part_number_value}\n\n📌 تم العثور على نتائج بناءً على التصنيف""" + footer
+            text = f"""<code>🧑‍💼 استعلام خاص بـ {user_name}</code>
+
+🚗 <b>الفئة:</b> {selected_car}
+🔹 <b>اسم القطعة:</b> {part_name_value}
+🔹 <b>رقم القطعة:</b> {part_number_value}
+
+📌 تم العثور على نتائج بناءً على التصنيف""" + footer
 
             keyboard = []
             if pd.notna(row.get("Image")):

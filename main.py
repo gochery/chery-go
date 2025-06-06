@@ -833,9 +833,9 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
     part_categories = {
         "🧴 الزيوت": "زيت",
         "🌀 الفلاتر": "فلتر",
-        "🔋 البطاريات": "بطارية",
+        "🔋 البطاريات": "بطاريات / منتج مساعد",
         "🔌 البواجي": "بواجي",
-        "🧼 التنظيف": "منتج",
+        "🧼 التنظيف": "بطاريات / منتج مساعد",  # نفس الفئة
         "⚙️ السيور": "سير",
         "🛞 الفحمات": "فحمات",
         "💧 سوائل النقل": "سائل ناقل",
@@ -1564,12 +1564,13 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         filtered_df = df_parts[df_parts["Station No"] == selected_car]
-        matches = filtered_df[
+        if keyword == "بطارية":  # أو keyword in ["بطارية", "منتج", "مساعد"]
+            matches = filtered_df[
             filtered_df["Station Name"]
             .astype(str)
             .str.strip()
-            .str.contains(f"^{keyword}|\\s{keyword}", case=False, na=False)
-       ]
+            .str.contains("بطارية|منتج", case=False, na=False)
+        ]
 
         if matches.empty:
             await query.answer("❌ لا توجد نتائج ضمن هذا التصنيف.", show_alert=True)

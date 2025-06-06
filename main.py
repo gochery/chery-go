@@ -819,20 +819,17 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if query.from_user.id != user_id:
         requester = await context.bot.get_chat(user_id)
-        await query.answer(
-            f"❌ هذا الاستعلام خاص بـ {requester.first_name} {requester.last_name} - استخدم الأمر /go",
-            show_alert=True
-        )
+        await query.answer(f"❌ هذا الاستعلام خاص بـ {requester.first_name} {requester.last_name} - استخدم الأمر /go", show_alert=True)
         return
 
     car = " ".join(data[1:-1])
-
+    
     context.user_data.setdefault(user_id, {})
     context.user_data[user_id]["selected_car"] = car
     context.user_data[user_id]["action"] = "parts"
-    context.user_data[user_id].setdefault("used_parts", set())
-    context.user_data[user_id]["search_attempts"] = 0
+    context.user_data[user_id]["search_attempts"] = 0  # إعادة تعيين العداد عند كل اختيار فئة
 
+    # التصنيفات الرئيسية للقطع الاستهلاكية
     part_categories = {
         "🧴 الزيوت": "زيت",
         "🌀 الفلاتر": "فلتر",
@@ -844,28 +841,19 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
         "💧 سوائل النقل": "سائل ناقل",
     }
 
-    used_parts = context.user_data[user_id]["used_parts"]
     keyboard = [
         [InlineKeyboardButton(name, callback_data=f"catpart_{keyword}_{user_id}")]
-        for name, keyword in part_categories.items() if keyword not in used_parts
+        for name, keyword in part_categories.items()
     ]
 
-    new_text = f"🔧 اختر تصنيف القطع لفئة: {car}"
-    if not keyboard:
-        new_text += "\n✅ تم استخدام جميع التصنيفات المتاحة."
-
-    # 🔐 تجنّب التعديل إذا لم يتغير النص أو الأزرار
-    current_text = query.message.text
-    current_markup = query.message.reply_markup
-
-    new_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
-
-    if current_text != new_text or current_markup != new_markup:
-        msg = await query.edit_message_text(new_text, reply_markup=new_markup)
-        register_message(user_id, msg.message_id, query.message.chat_id, context)
-
+    msg = await query.edit_message_text(
+        f"🔧 اختر تصنيف القطع لفئة: {car}",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    register_message(user_id, msg.message_id, query.message.chat_id, context)
     await log_event(update, f"اختار فئة قطع الغيار: {car}")
-    await query.answer()
+
+    await query.answer()  # تأكيد استقبال callback query
 
 async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1566,15 +1554,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     elif action == "catpart":
-        _, keyword, user_id_str = data
-        user_id = int(user_id_str)
-
-    # حفظ التصنيف المستخدم في قائمة المستخدم
-        context.user_data.setdefault(user_id, {})
-        context.user_data[user_id].setdefault("used_categories", set()).add(keyword)
-
-    # إعادة عرض التصنيفات المتبقية
-        return await select_car_for_parts(update, context)
+        # هذه الحالة مخصصة للتصنيفات ضمن قطع الغيار
+        keyword = data[1]  # تأكدنا منه في الأعلى
+        user_id = int(data[2])
+        selected_car = context.user_data[user_id].get("selected_car")
 
         if not selected_car:
             await query.answer("❌ يرجى اختيار فئة السيارة أولاً.", show_alert=True)
@@ -1602,13 +1585,14 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             part_name_value = row.get("Station Name", "غير معروف")
             part_number_value = row.get("Part No", "غير معروف")
 
-            text = f"""<code>🧑‍💼 استعلام خاص بـ {user_name}</code>
-
-🚗 <b>الفئة:</b> {selected_car}
-🔹 <b>اسم القطعة:</b> {part_name_value}
-🔹 <b>رقم القطعة:</b> {part_number_value}
-
-📌 تم العثور على نتائج بناءً على التصنيف""" + footer
+            text = (
+                f"<code>🧑‍💼 استعلام خاص بـ {user_name}</code>\n\n"
+                f"🚗 <b>الفئة:</b> {selected_car}\n"
+                f"🔹 <b>اسم القطعة:</b> {part_name_value}\n"
+                f"🔹 <b>رقم القطعة:</b> {part_number_value}\n\n"
+                f"📌 تم العثور على نتائج بناءً على التصنيف"
+                + footer
+            )
 
             keyboard = []
             if pd.notna(row.get("Image")):

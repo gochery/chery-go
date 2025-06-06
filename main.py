@@ -1550,23 +1550,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await log_event(update, "تم فتح رابط قطع الغيار الخارجي")
         return
 
-    elif action == "consumable":
-        car_categories = df_parts["Station No"].dropna().unique().tolist()
-        keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories]
-        context.user_data[user_id]["reselect_count"] = 0
-        try:
-            msg = await query.edit_message_text(
-                "🚗 اختر فئة السيارة لاستعلام القطع:",
-                reply_markup=InlineKeyboardMarkup(keyboard)
-           )
-            register_message(user_id, msg.message_id, query.message.chat_id, context)
-        except telegram.error.BadRequest as e:
-             if "Message is not modified" not in str(e):
-                 raise  # فقط تجاهل الخطأ هذا، والباقي اظهره
-
-        await log_event(update, "اختيار فئة السيارة لقطع الغيار")
-        return
-
     elif action == "catpart":
         keyword = data[1].strip().lower()
         user_id = int(data[2])
@@ -1576,9 +1559,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("❌ يرجى اختيار فئة السيارة أولاً.", show_alert=True)
             return
 
+    # تصفية حسب الفئة
         filtered_df = df_parts[df_parts["Station No"] == selected_car]
 
-    # كلمات البحث المرادفة
+    # كلمات بحث بديلة
         search_variants = list(set([
             keyword,
             keyword + "ات" if not keyword.endswith("ات") else keyword[:-2],
@@ -1586,15 +1570,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyword.replace("ى", "ي") if "ى" in keyword else keyword
         ]))
 
-    # بناء pattern regex للبحث في Station Name
+    # بناء pattern شامل
         pattern = "|".join(re.escape(term) for term in search_variants)
 
-        matches = filtered_df[
-            filtered_df["Station Name"]
-            .astype(str)
-            .str.lower()
-            .str.contains(pattern, regex=True, na=False)
-    ]
+    # البحث في جميع الأعمدة النصية
+        mask = filtered_df.astype(str).apply(lambda col: col.str.lower().str.contains(pattern, regex=True, na=False)).any(axis=1)
+        matches = filtered_df[mask]
 
         if matches.empty:
             await query.answer("❌ لا توجد نتائج ضمن هذا التصنيف.", show_alert=True)
@@ -1606,7 +1587,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user_name = query.from_user.full_name
 
-        for i, row in matches.iterrows():
+        for _, row in matches.iterrows():
             part_name_value = row.get("Station Name", "غير معروف")
             part_number_value = row.get("Part No", "غير معروف")
 
@@ -1619,10 +1600,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 + footer
             )
 
-            keyboard = []
             msg = await query.message.reply_text(
                 text,
-                reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
+                reply_markup=None,
                 parse_mode=ParseMode.HTML
             )
             register_message(user_id, msg.message_id, query.message.chat_id, context)

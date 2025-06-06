@@ -1550,11 +1550,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await log_event(update, "تم فتح رابط قطع الغيار الخارجي")
         return
 
-   elif action == "consumable":
-       car_categories = df_parts["Station No"].dropna().unique().tolist()
-       keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories]
-       context.user_data[user_id]["reselect_count"] = 0
-       try:
+    elif action == "consumable":
+        car_categories = df_parts["Station No"].dropna().unique().tolist()
+        keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories]
+        context.user_data[user_id]["reselect_count"] = 0
+        try:
             msg = await query.edit_message_text(
                 "🚗 اختر فئة السيارة لاستعلام القطع:",
                 reply_markup=InlineKeyboardMarkup(keyboard)

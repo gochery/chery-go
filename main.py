@@ -594,16 +594,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ✅ استعلام قطع غيار
     if context.user_data.get(user_id, {}).get("action") == "parts" and message.text:
-    part_name = message.text.strip().lower()
+        part_name = message.text.strip().lower()
 
-    if part_name == "🔁":
-        reselect_count = context.user_data[user_id].get("reselect_count", 0)
-        if reselect_count >= 2:
-            await message.reply_text("🚫 لا يمكنك إعادة اختيار الفئة أكثر من مرتين في نفس الجلسة.")
-            return
+        if part_name == "🔁":
+            reselect_count = context.user_data[user_id].get("reselect_count", 0)
+            if reselect_count >= 2:
+                await message.reply_text("🚫 لا يمكنك إعادة اختيار الفئة أكثر من مرتين في نفس الجلسة.")
+                return
 
         car_categories = df_parts["Station No"].dropna().unique().tolist()
-        keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories if car != "ALL CAR"]
+        keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories]
         msg = await message.reply_text("🔁 اختر فئة جديدة للسيارة:", reply_markup=InlineKeyboardMarkup(keyboard))
         register_message(user_id, msg.message_id, chat.id, context)
         return

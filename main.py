@@ -596,7 +596,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get(user_id, {}).get("action") == "parts" and message.text:
         part_name = message.text.strip().lower()
 
-        # 🔁 منع إعادة اختيار الفئة - فقط نسمح بمحاولات بحث متعددة
+    # 🔁 منع إعادة اختيار الفئة - فقط نسمح بمحاولات بحث متعددة
         context.user_data[user_id].setdefault("search_attempts", 0)
         context.user_data[user_id]["search_attempts"] += 1
 
@@ -606,42 +606,41 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data[user_id].clear()
             return
 
-    selected_car = context.user_data[user_id].get("selected_car")
+        selected_car = context.user_data[user_id].get("selected_car")
 
-    if not selected_car:
-        msg = await message.reply_text("❗ لم يتم اختيار فئة السيارة.")
-        register_message(user_id, msg.message_id, chat.id, context)
-        return
+        if not selected_car:
+            msg = await message.reply_text("❗ لم يتم اختيار فئة السيارة.")
+            register_message(user_id, msg.message_id, chat.id, context)
+            return
 
     # تصفية الصفوف الخاصة بفئة السيارة
-    filtered_df = df_parts[df_parts["Station No"] == selected_car]
+        filtered_df = df_parts[df_parts["Station No"] == selected_car]
 
     # الأعمدة التي نريد البحث فيها — حسب بنية ملف PARTS
-    columns_to_search = ["Station Name", "Part No"]
+        columns_to_search = ["Station Name", "Part No"]
 
-    def match_row(row):
-        return row.str.contains(part_name, case=False, na=False).any()
+    # البحث داخل الأعمدة المحددة
+        matches = filtered_df[
+            filtered_df[columns_to_search].apply(lambda x: x.str.contains(part_name, case=False, na=False)).any(axis=1)
+        ]
 
-    # البحث داخل الصفوف الخاصة بالفئة فقط
-    matches = filtered_df[filtered_df[columns_to_search].astype(str).apply(match_row, axis=1)]
+        if matches.empty:
+            msg = await message.reply_text("❌ لم يتم العثور على نتائج ضمن فئة السيارة أو الادخال خاطئ.")
+            register_message(user_id, msg.message_id, chat.id, context)
+            return
 
-    if matches.empty:
-        msg = await message.reply_text("❌ لم يتم العثور على نتائج ضمن فئة السيارة أو الادخال خاطئ.")
-        register_message(user_id, msg.message_id, chat.id, context)
-        return
+        now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
+        delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
+        footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
 
-    now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-    delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
-    footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
+        user_name = update.effective_user.full_name
+        remaining = 3 - context.user_data[user_id]["search_attempts"]
 
-    user_name = update.effective_user.full_name
-    remaining = 3 - context.user_data[user_id]["search_attempts"]
+        for i, row in matches.iterrows():
+            part_name_value = row.get("Station Name", "غير معروف")
+            part_number_value = row.get("Part No", "غير معروف")
 
-    for i, row in matches.iterrows():
-        part_name_value = row.get("Station Name", "غير معروف")
-        part_number_value = row.get("Part No", "غير معروف")
-
-        text = f"""<code>🧑‍💼 استعلام خاص بـ {user_name}</code>
+            text = f"""<code>🧑‍💼 استعلام خاص بـ {user_name}</code>
 
 🚗 <b>الفئة:</b> {selected_car}
 🔹 <b>اسم القطعة:</b> {part_name_value}
@@ -662,24 +661,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await log_event(update, f"✅ بحث دقيق ضمن {selected_car}: {part_name}")
     register_message(user_id, message.message_id, chat.id, context)
     return
-
-async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-    mode = context.user_data.get(user_id, {}).get("compose_mode")
-
-    if mode == "suggestion":
-        suggestion_records.pop(user_id, None)
-        context.user_data[user_id].clear()
-        await query.edit_message_text("❌ تم إلغاء الاقتراح.")
-    else:
-        await query.answer("🚫 لا توجد عملية نشطة لإلغائها.", show_alert=True)
-
-    # ✅ حذف الرسالة التي تحتوي الزر (سواء في الوضعين)
-    try:
-        await query.message.delete()
-    except:
-        pass
 
 async def show_manual_car_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -824,11 +805,13 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     car = " ".join(data[1:-1])
+    
+    context.user_data.setdefault(user_id, {})
     context.user_data[user_id]["selected_car"] = car
     context.user_data[user_id]["action"] = "parts"
-    context.user_data[user_id]["search_attempts"] = 0  # ✅ إعادة تعيين العداد عند كل اختيار فئة
+    context.user_data[user_id]["search_attempts"] = 0  # إعادة تعيين العداد عند كل اختيار فئة
 
-    # 🧠 التصنيفات الرئيسية للقطع الاستهلاكية
+    # التصنيفات الرئيسية للقطع الاستهلاكية
     part_categories = {
         "🧴 الزيوت": "زيت",
         "🌀 الفلاتر": "فلتر",
@@ -851,6 +834,8 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     register_message(user_id, msg.message_id, query.message.chat_id, context)
     await log_event(update, f"اختار فئة قطع الغيار: {car}")
+
+    await query.answer()  # تأكيد استقبال callback query
 
 async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1485,11 +1470,13 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data.startswith("catpart_"):
         # تعامل خاص مع أزرار التصنيفات
-        _, keyword, user_id = data
-        user_id = int(user_id)
+        _, keyword, user_id_str = data
+        user_id = int(user_id_str)
+        action = "catpart"
     else:
         # باقي الأنواع الأخرى مثل parts_1543 أو suggestion_123
-        action, user_id = data[0], int(data[1])
+        action, user_id_str = data[0], data[1]
+        user_id = int(user_id_str)
 
     if query.from_user.id != user_id:
         requester = await context.bot.get_chat(user_id)
@@ -1548,10 +1535,15 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await log_event(update, "اختيار فئة السيارة لقطع الغيار")
         return
 
-    elif query.data.startswith("catpart_"):
-        _, keyword, user_id = query.data.split("_")
-        user_id = int(user_id)
+    elif action == "catpart":
+        # هذه الحالة مخصصة للتصنيفات ضمن قطع الغيار
+        keyword = data[1]  # تأكدنا منه في الأعلى
+        user_id = int(data[2])
         selected_car = context.user_data[user_id].get("selected_car")
+
+        if not selected_car:
+            await query.answer("❌ يرجى اختيار فئة السيارة أولاً.", show_alert=True)
+            return
 
         filtered_df = df_parts[df_parts["Station No"] == selected_car]
         matches = filtered_df[
@@ -1593,7 +1585,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             register_message(user_id, msg.message_id, query.message.chat_id, context)
 
         await log_event(update, f"✅ استعلام تصنيفي: {keyword} ضمن {selected_car}")
-   
+        return
+
     elif action == "maintenance":
         context.user_data[user_id]["action"] = "maintenance"
         cars = df_maintenance["car_type"].dropna().unique().tolist()
@@ -1605,7 +1598,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         register_message(user_id, msg.message_id, query.message.chat_id, context)
         await log_event(update, "فتح قائمة صيانة دورية")
         return
-   
+
     elif action == "suggestion":
         context.user_data[user_id]["action"] = "suggestion"
         msg = await query.edit_message_text("✉️ يرجى كتابة اقتراحك أو ملاحظتك أدناه:")

@@ -613,50 +613,50 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     # تصفية الصفوف الخاصة بفئة السيارة
-       filtered_df = df_parts[df_parts["Station No"] == selected_car]
+        filtered_df = df_parts[df_parts["Station No"] == selected_car]
 
     # الأعمدة التي نريد البحث فيها — حسب بنية ملف PARTS
-       columns_to_search = ["Station Name", "Part No"]
+        columns_to_search = ["Station Name", "Part No"]
 
-       def match_row(row):
-           return row.str.contains(part_name, case=False, na=False).any()
+        def match_row(row):
+            return row.str.contains(part_name, case=False, na=False).any()
 
     # البحث داخل الصفوف الخاصة بالفئة فقط
-       matches = filtered_df[filtered_df[columns_to_search].astype(str).apply(match_row, axis=1)]
+        matches = filtered_df[filtered_df[columns_to_search].astype(str).apply(match_row, axis=1)]
 
-       if matches.empty:
-           msg = await message.reply_text("❌ لم يتم العثور على نتائج ضمن فئة السيارة المحددة.")
-           register_message(user_id, msg.message_id, chat.id, context)
-           return
+        if matches.empty:
+            msg = await message.reply_text("❌ لم يتم العثور على نتائج ضمن فئة السيارة المحددة.")
+            register_message(user_id, msg.message_id, chat.id, context)
+            return
 
-       now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-       delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
-       footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
+        now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
+        delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
+        footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
 
-       user_name = update.effective_user.full_name
-       remaining = 3 - context.user_data[user_id]["search_attempts"]
+        user_name = update.effective_user.full_name
+        remaining = 3 - context.user_data[user_id]["search_attempts"]
 
-       for i, row in matches.iterrows():
-           part_info_lines = []
-           for col in columns_to_search:
-               val = row[col]
-               if pd.notna(val) and str(val).strip():
-                   part_info_lines.append(f"🔹 <b>{col}</b>: {val}")
-           part_info = "\n".join(part_info_lines)
+        for i, row in matches.iterrows():
+            part_info_lines = []
+            for col in columns_to_search:
+                val = row[col]
+                if pd.notna(val) and str(val).strip():
+                    part_info_lines.append(f"🔹 <b>{col}</b>: {val}")
+            part_info = "\n".join(part_info_lines)
 
-           text = f"`🧑‍💼 خاص بـ {user_name}`\n\n🚗 <b>الفئة:</b> {selected_car}\n{part_info}\n\n📌 تبقّى لك: ({remaining} من 3) محاولات" + footer
+            text = f"`🧑‍💼 خاص بـ {user_name}`\n\n🚗 <b>الفئة:</b> {selected_car}\n{part_info}\n\n📌 تبقّى لك: ({remaining} من 3) محاولات" + footer
 
-           keyboard = []
-           if pd.notna(row.get("Image")):
-               keyboard.append([InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")])
-           msg = await message.reply_text(
-               text, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None, parse_mode=ParseMode.HTML
-           )
-           register_message(user_id, msg.message_id, chat.id, context)
+            keyboard = []
+            if pd.notna(row.get("Image")):
+                keyboard.append([InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")])
+            msg = await message.reply_text(
+                text, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None, parse_mode=ParseMode.HTML
+            )
+            register_message(user_id, msg.message_id, chat.id, context)
 
-       await log_event(update, f"✅ بحث دقيق ضمن {selected_car}: {part_name}")
-       register_message(user_id, message.message_id, chat.id, context)
-       return
+        await log_event(update, f"✅ بحث دقيق ضمن {selected_car}: {part_name}")
+        register_message(user_id, message.message_id, chat.id, context)
+        return
 
 async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

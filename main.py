@@ -1569,15 +1569,15 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "catpart":
         keyword = data[1].strip().lower()
-        user_id = int(data[2])
-    
-    # ✅ تسجيل الفئة المختارة في user_data:
-        selected_car = data[1].replace("_", " ").strip()
-        context.user_data[user_id]["selected_car"] = selected_car
+
+        # ✅ استخدم الفئة المحفوظة بدلًا من استخراجها من البيانات
+        selected_car = context.user_data[user_id].get("selected_car", "غير معروف")
+        if selected_car == "غير معروف":
+            await query.answer("⚠️ حدث خطأ: لم يتم تحديد فئة السيارة.", show_alert=True)
+            return
 
         filtered_df = df_parts[df_parts["Station No"] == selected_car]
 
-    # كلمات البحث المرادفة
         search_variants = list(set([
             keyword,
             keyword + "ات" if not keyword.endswith("ات") else keyword[:-2],
@@ -1604,7 +1604,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user_name = query.from_user.full_name
 
-        for i, row in matches.iterrows():
+        for _, row in matches.iterrows():
             part_name_value = row.get("Station Name", "غير معروف")
             part_number_value = row.get("Part No", "غير معروف")
 
@@ -1617,10 +1617,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 + footer
             )
 
-            keyboard = []
             msg = await query.message.reply_text(
                 text,
-                reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
                 parse_mode=ParseMode.HTML
             )
             register_message(user_id, msg.message_id, query.message.chat_id, context)
@@ -1634,13 +1632,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         register_message(user_id, msg.message_id, query.message.chat_id, context)
         await log_event(update, "بدأ المستخدم إرسال اقتراح أو ملاحظة")
 
-        # ✅ بدء جلسة جديدة إن لم تكن موجودة
         if "active_suggestion_id" not in context.user_data[user_id]:
             suggestion_id = await start_suggestion_session(user_id, context)
         else:
             suggestion_id = context.user_data[user_id]["active_suggestion_id"]
 
-        # ✅ حفظ معلومات المجموعة داخل الجلسة الصحيحة
         suggestion_records[user_id][suggestion_id]["group_name"] = chat.title if chat.title else "خاص"
         suggestion_records[user_id][suggestion_id]["group_id"] = chat.id
         suggestion_records[user_id][suggestion_id]["user_name"] = update.effective_user.full_name

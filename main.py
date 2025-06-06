@@ -601,7 +601,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data[user_id]["search_attempts"] += 1
 
         if context.user_data[user_id]["search_attempts"] > 3:
-            msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث المتاحة.\n🔁 ابدأ من جديد باستخدام /go")
+            msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث خلال الجلسة.\n🔁 ابدأ من جديد باستخدام go من المجموعة")
             register_message(user_id, msg.message_id, chat.id, context)
             context.user_data[user_id].clear()
             return

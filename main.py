@@ -1510,10 +1510,18 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         car_categories = df_parts["Station No"].dropna().unique().tolist()
         keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories]
         context.user_data[user_id]["reselect_count"] = 0
-        msg = await query.edit_message_text("🚗 اختر فئة السيارة لاستعلام القطع:", reply_markup=InlineKeyboardMarkup(keyboard))
-        register_message(user_id, msg.message_id, query.message.chat_id, context)
-        await log_event(update, "اختيار فئة السيارة لقطع الغيار")
-        return
+        try:
+            msg = await query.edit_message_text(
+                "🚗 اختر فئة السيارة لاستعلام القطع:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+           )
+            register_message(user_id, msg.message_id, query.message.chat_id, context)
+         except telegram.error.BadRequest as e:
+             if "Message is not modified" not in str(e):
+                 raise  # فقط تجاهل الخطأ هذا، والباقي اظهره
+
+         await log_event(update, "اختيار فئة السيارة لقطع الغيار")
+         return
     
     elif action == "maintenance":
         context.user_data[user_id]["action"] = "maintenance"

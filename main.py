@@ -662,6 +662,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_message(user_id, message.message_id, chat.id, context)
     return
 
+async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    mode = context.user_data.get(user_id, {}).get("compose_mode")
+
+    if mode == "suggestion":
+        suggestion_records.pop(user_id, None)
+        context.user_data[user_id].clear()
+        await query.edit_message_text("❌ تم إلغاء الاقتراح.")
+    else:
+        await query.answer("🚫 لا توجد عملية نشطة لإلغائها.", show_alert=True)
+
+    # ✅ حذف الرسالة التي تحتوي الزر (سواء في الوضعين)
+    try:
+        await query.message.delete()
+    except:
+        pass
+        
 async def show_manual_car_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data.split("_")

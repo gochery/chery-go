@@ -1554,8 +1554,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     elif action == "catpart":
-        # هذه الحالة مخصصة للتصنيفات ضمن قطع الغيار
-        keyword = data[1]  # تأكدنا منه في الأعلى
+        keyword = data[1]
         user_id = int(data[2])
         selected_car = context.user_data[user_id].get("selected_car")
 
@@ -1564,12 +1563,13 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         filtered_df = df_parts[df_parts["Station No"] == selected_car]
-        if keyword == "بطارية":  # أو keyword in ["بطارية", "منتج", "مساعد"]
-            matches = filtered_df[
+
+    # ✅ دعم تصنيفات متعددة باستخدام الكلمة المفتاحية
+        matches = filtered_df[
             filtered_df["Station Name"]
             .astype(str)
             .str.strip()
-            .str.contains("بطارية|منتج", case=False, na=False)
+            .str.contains(keyword, case=False, na=False)
         ]
 
         if matches.empty:

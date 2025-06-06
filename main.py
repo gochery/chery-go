@@ -594,28 +594,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ✅ استعلام قطع غيار
     if context.user_data.get(user_id, {}).get("action") == "parts" and message.text:
-        part_name = message.text.strip().lower()
+    part_name = message.text.strip().lower()
 
-        if part_name == "🔁":
-            reselect_count = context.user_data[user_id].get("reselect_count", 0)
-            if reselect_count >= 2:
-                await message.reply_text("🚫 لا يمكنك إعادة اختيار الفئة أكثر من مرتين في نفس الجلسة.")
-                return
+    if part_name == "🔁":
+        reselect_count = context.user_data[user_id].get("reselect_count", 0)
+        if reselect_count >= 2:
+            await message.reply_text("🚫 لا يمكنك إعادة اختيار الفئة أكثر من مرتين في نفس الجلسة.")
+            return
 
-            cars = [col for col in df_parts.columns if col not in ["Station Name", "Part No", "Station No", "Image"]]
-            keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in cars]
-            msg = await message.reply_text("🔁 اختر فئة جديدة للسيارة:", reply_markup=InlineKeyboardMarkup(keyboard))
-            register_message(user_id, msg.message_id, chat.id, context)
+        car_categories = df_parts["Station No"].dropna().unique().tolist()
+        keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories if car != "ALL CAR"]
+        msg = await message.reply_text("🔁 اختر فئة جديدة للسيارة:", reply_markup=InlineKeyboardMarkup(keyboard))
+        register_message(user_id, msg.message_id, chat.id, context)
         return
 
     selected_car = context.user_data[user_id].get("selected_car")
 
-    if not selected_car or selected_car not in df_parts.columns:
-        msg = await message.reply_text("❗ لم يتم اختيار فئة السيارة أو أنها غير مدعومة.")
+    if not selected_car:
+        msg = await message.reply_text("❗ لم يتم اختيار فئة السيارة.")
         register_message(user_id, msg.message_id, chat.id, context)
         return
 
-    matches = df_parts[df_parts[selected_car].astype(str).str.contains(part_name, case=False, na=False)]
+    # تصفية الصفوف الخاصة بفئة السيارة
+    filtered_df = df_parts[df_parts["Station No"] == selected_car]
+
+    # الأعمدة التي نريد البحث فيها
+    columns_to_search = [col for col in df_parts.columns if col not in ["Station No", "Image", "Station Name"]]
+
+    # البحث عن القطعة في الصفوف الخاصة بالفئة فقط
+    matches = filtered_df[filtered_df[columns_to_search].astype(str).apply(lambda row: row.str.contains(part_name, case=False, na=False)).any(axis=1)]
 
     if matches.empty:
         msg = await message.reply_text("❌ لم يتم العثور على نتائج ضمن فئة السيارة المحددة.")
@@ -629,8 +636,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.full_name
 
     for i, row in matches.iterrows():
-        part_info = str(row[selected_car])
-        text = f"`🧑‍💼 خاص بـ {user_name}`\n\n🔧 <b>الفئة:</b> {selected_car}\n📦 <b>المعلومة:</b> {part_info}" + footer
+        part_info_lines = []
+        for col in columns_to_search:
+            val = row[col]
+            if pd.notna(val) and str(val).strip():
+                part_info_lines.append(f"🔹 <b>{col}</b>: {val}")
+        part_info = "\n".join(part_info_lines)
+
+        text = f"`🧑‍💼 خاص بـ {user_name}`\n\n🚗 <b>الفئة:</b> {selected_car}\n{part_info}" + footer
+
         keyboard = []
         if pd.notna(row.get("Image")):
             keyboard.append([InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")])
@@ -1486,8 +1500,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     elif action == "consumable":
-        cars = [col for col in df_parts.columns if col not in ["Station Name", "Part No", "Station No", "Image"]]
-        keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in cars]
+        car_categories = df_parts["Station No"].dropna().unique().tolist()
+        keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories]
         keyboard.append([InlineKeyboardButton("🔁 إعادة اختيار الفئة", callback_data=f"reselectcar_{user_id}")])
         context.user_data[user_id]["reselect_count"] = 0
         msg = await query.edit_message_text("🚗 اختر فئة السيارة لاستعلام القطع:", reply_markup=InlineKeyboardMarkup(keyboard))

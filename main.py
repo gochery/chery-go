@@ -602,11 +602,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await message.reply_text("🚫 لا يمكنك إعادة اختيار الفئة أكثر من مرتين في نفس الجلسة.")
                 return
 
-        car_categories = df_parts["Station No"].dropna().unique().tolist()
-        keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories]
-        msg = await message.reply_text("🔁 اختر فئة جديدة للسيارة:", reply_markup=InlineKeyboardMarkup(keyboard))
-        register_message(user_id, msg.message_id, chat.id, context)
-        return
+            car_categories = df_parts["Station No"].dropna().unique().tolist()
+            keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories]
+            msg = await message.reply_text("🔁 اختر فئة جديدة للسيارة:", reply_markup=InlineKeyboardMarkup(keyboard))
+            register_message(user_id, msg.message_id, chat.id, context)
+            return  # ✅ هذا return لا بد أن يكون هنا فقط داخل if
 
     selected_car = context.user_data[user_id].get("selected_car")
 

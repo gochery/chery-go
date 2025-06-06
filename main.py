@@ -606,7 +606,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = [[InlineKeyboardButton(car, callback_data=f"carpart_{car.replace(' ', '_')}_{user_id}")] for car in car_categories]
             msg = await message.reply_text("🔁 اختر فئة جديدة للسيارة:", reply_markup=InlineKeyboardMarkup(keyboard))
             register_message(user_id, msg.message_id, chat.id, context)
-            return  # ✅ هذا return لا بد أن يكون هنا فقط داخل if
+            return
 
     selected_car = context.user_data[user_id].get("selected_car")
 
@@ -619,7 +619,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     filtered_df = df_parts[df_parts["Station No"] == selected_car]
 
     # الأعمدة التي نريد البحث فيها
-    columns_to_search = [col for col in df_parts.columns if col not in ["Station No", "Image", "Station Name"]]
+    columns_to_search = ["Station Name", "Part No"]
 
     # البحث عن القطعة في الصفوف الخاصة بالفئة فقط
     matches = filtered_df[filtered_df[columns_to_search].astype(str).apply(lambda row: row.str.contains(part_name, case=False, na=False)).any(axis=1)]

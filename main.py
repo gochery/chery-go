@@ -1482,7 +1482,14 @@ async def show_store_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data.split("_")
-    action, user_id = data[0], int(data[1])
+
+    if query.data.startswith("catpart_"):
+        # تعامل خاص مع أزرار التصنيفات
+        _, keyword, user_id = data
+        user_id = int(user_id)
+    else:
+        # باقي الأنواع الأخرى مثل parts_1543 أو suggestion_123
+        action, user_id = data[0], int(data[1])
 
     if query.from_user.id != user_id:
         requester = await context.bot.get_chat(user_id)

@@ -605,13 +605,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                f"🔎 {part_name}</code>\n\n"
          )
 
-# 🔻 جسم النتائج (نص عادي)
-        results = ""
+ # 🔻 جسم النتائج
+        results = f"📌 نتائج البحث عن: {part_name}\n\n"
+
         for idx, row in matches.iterrows():
             results += (
                 f"🧩 {row['Station Name']}\n"
-               f"🔢 رقم القطعة: {row['Part No']}\n\n"
-        )
+                f"🔢 رقم القطعة: {row['Part No']}\n\n"
+            )
 
 # 🔻 التذييل (صندوق نحيف يشمل التنبيه)
         footer = (
@@ -827,12 +828,12 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
     user_name = query.from_user.full_name
 
     text = (
-        f"<code>       🧑‍💼 استعلام خاص بـ {user_name}\n"
-        f"                 🚗 {car}</code>\n\n"
+        f"<code>🧑‍💼 استعلام خاص بـ {user_name}\n"
+        f"🚗 {car}</code>\n\n"
         f"🔧 يمكنك الآن البحث بطريقتين:\n"
         f"1️⃣ اختيار التصنيف الجاهز من القائمة\n"
         f"2️⃣ أو كتابة اسم القطعة يدويًا\n\n"
-        f"<code>       ⏳ سيتم حذف هذا الاستعلام خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
+        f"<code>⏳ سيتم حذف هذا الاستعلام خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
     )
 
     msg = await query.edit_message_text(

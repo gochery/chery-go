@@ -898,37 +898,6 @@ async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await log_event(update, f"❌ فشل في إرسال دليل PDF لـ {car_name}: {e}", level="error")
         await query.message.reply_text("📂 تعذر إرسال الملف. حاول لاحقاً.")
 
-async def send_part_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    parts = query.data.split("_")
-    index, user_id = int(parts[2]), int(parts[3])
-
-    if query.from_user.id != user_id:
-        requester = await context.bot.get_chat(user_id)
-        await query.answer(
-            f"❌ هذا الاستعلام خاص بـ {requester.first_name} {requester.last_name} - استخدم الأمر /go",
-            show_alert=True
-        )
-        return
-
-    if context.user_data.get(user_id, {}).get(f"image_opened_{index}"):
-        await query.answer(f"❌ عزيزي {query.from_user.full_name}، لا يمكنك فتح هذا الاستعلام مرتين بنفس الجلسة. الرجاء استخدام /go مره اخرى.", show_alert=True)
-        return
-
-    context.user_data.setdefault(user_id, {})[f"image_opened_{index}"] = True
-    row = df_parts.iloc[index]
-
-    user_name = query.from_user.full_name
-    now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-    delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
-    header = f"`🧑‍💻 استعلام خاص بـ {user_name}`\n"
-    footer = f"\n`⏳ سيتم حذف هذا الاستعلام تلقائياً خلال 5 دقائق ({delete_time} / 🇸🇦)`"
-
-    caption = f"{header}*الاسم:* {row['Station Name']}\n*الرقم:* {row['Part No']}{footer}"
-
-    msg = await context.bot.send_photo(chat_id=query.message.chat_id, photo=row["Image"], caption=caption, parse_mode=constants.ParseMode.MARKDOWN)
-    register_message(user_id, msg.message_id, query.message.chat_id, context)
-    
 async def car_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data.split("_")

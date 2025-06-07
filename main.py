@@ -595,47 +595,62 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         user_name = message.from_user.full_name
+        selected_car = context.user_data[user_id].get("selected_car")
+        part_name = message.text.strip()
+
+# أمان HTML
+        user_name_safe = html.escape(user_name)
+        selected_car_safe = html.escape(selected_car)
+        part_name_safe = html.escape(part_name)
+
+# توقيت الحذف التلقائي
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
 
-# 🔻 رأس صندوق المعلومات
+# 🔻 رأس الصندوق - اسم المستعلم والفئة
         header = (
-               f"<code>🧑‍💼 استعلام خاص بـ {user_name}\n"
-               f"🚗 {selected_car}\n"
-         )
-
- # 🔻 جسم النتائج
-        results = f"<code>📌 نتائج البحث عن: {part_name}</code>\n\n"
-
-        for idx, row in matches.iterrows():
-            results += (
-                f"🧩 {row['Station Name']}\n"
-                f"🔢 رقم القطعة: {row['Part No']}\n\n"
-            )
-
-# 🔻 التذييل (صندوق نحيف يشمل التنبيه)
-        footer = (
-            f"<code>📸 الصور متاحة عبر التصنيفات\n"
-            f"⏳ الحذف التلقائي خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
+            f"<code>🧑‍💼 استعلام خاص بـ: {user_name_safe}\n"
+           f"🚗 الفئة: {selected_car_safe}</code>\n\n"
         )
 
-# 🔻 دمج كامل الرسالة
-        response = header + results + footer
+# 🔻 عنوان النتائج فقط بصندوق
+       results = f"<code>📌 نتائج البحث عن: {part_name_safe}</code>\n\n"
 
-# الزر
-        safe_car_name = selected_car.replace(" ", "_")
-        callback_data = f"showparts_{safe_car_name}_{user_id}"
-        keyboard = [[InlineKeyboardButton("🗂 عرض القطع المصنفة", callback_data=callback_data)]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+# 🔻 جسم النتائج بدون صندوق
+       for idx, row in matches.iterrows():
+           station = html.escape(row['Station Name'])
+           part_no = html.escape(row['Part No'])
+           results += (
+               f"🧩 المحطة: {station}\n"
+              f"🔢 رقم القطعة: {part_no}\n\n"
+       ) 
 
-        msg = await message.reply_text(
-            response,
-            parse_mode="HTML",
-            disable_web_page_preview=True,
-            reply_markup=reply_markup
-        )
-        register_message(user_id, msg.message_id, chat.id, context)
-        return
+# 🔻 التذييل بصندوق
+      footer = (
+          f"<code>📸 الصور متاحة عبر التصنيفات\n"
+          f"⏳ الحذف التلقائي خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
+      )
+
+# 🔻 دمج الرسالة النهائية
+      response = header + results + footer
+
+# زر عرض القطع المصنفة
+      safe_car_name = selected_car.replace(" ", "_")
+      callback_data = f"showparts_{safe_car_name}_{user_id}"
+      keyboard = [[InlineKeyboardButton("🗂 عرض القطع المصنفة", callback_data=callback_data)]]
+      reply_markup = InlineKeyboardMarkup(keyboard)
+
+# إرسال الرسالة
+      msg = await message.reply_text(
+          response,
+          parse_mode="HTML",
+          disable_web_page_preview=True,
+          reply_markup=reply_markup
+      )
+
+# تسجيل الرسالة
+      register_message(user_id, msg.message_id, chat.id, context)
+      return
 
 async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

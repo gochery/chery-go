@@ -573,8 +573,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data[user_id].setdefault("search_attempts", 0)
         context.user_data[user_id]["search_attempts"] += 1
 
-        if context.user_data[user_id]["search_attempts"] > 3:
-            msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث.\n🔁 ابدأ من جديد باستخدام /go من المجموعة.")
+        if context.user_data[user_id]["search_attempts"] > 5:
+            msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث.\n🔁 ابدأ من جديد باستخدام go من المجموعة.")
             register_message(user_id, msg.message_id, chat.id, context)
             context.user_data[user_id].clear()
             return
@@ -600,7 +600,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # 🔻 رأس صندوق المعلومات
         header = (
-               f"<code>👤 {user_name}\n"
+               f"<code>       🧑‍💼 استعلام خاص بـ {user_name}\n"
                f"🚗 {selected_car}\n"
                f"🔎 {part_name}</code>\n\n"
          )
@@ -625,7 +625,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # الزر
         safe_car_name = selected_car.replace(" ", "_")
         callback_data = f"showparts_{safe_car_name}_{user_id}"
-        keyboard = [[InlineKeyboardButton("🗂 عرض القطع حسب التصنيف", callback_data=callback_data)]]
+        keyboard = [[InlineKeyboardButton("🗂 عرض القطع المصنفة", callback_data=callback_data)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         msg = await message.reply_text(
@@ -798,7 +798,7 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     car = " ".join(data[1:-1])
-    
+
     context.user_data.setdefault(user_id, {})
     context.user_data[user_id]["selected_car"] = car
     context.user_data[user_id]["action"] = "parts"
@@ -821,9 +821,24 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
         for name, keyword in part_categories.items()
     ]
 
+    # ✅ تنسيق الرد النهائي بصيغة احترافية
+    now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
+    delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
+    user_name = query.from_user.full_name
+
+    text = (
+        f"<code>       🧑‍💼 استعلام خاص بـ {user_name}\n"
+        f"                 🚗 {car}</code>\n\n"
+        f"🔧 يمكنك الآن البحث بطريقتين:\n"
+        f"1️⃣ اختيار التصنيف الجاهز من القائمة\n"
+        f"2️⃣ أو كتابة اسم القطعة يدويًا\n\n"
+        f"<code>       ⏳ سيتم حذف هذا الاستعلام خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
+    )
+
     msg = await query.edit_message_text(
-        f"🔧 اختر تصنيف القطع لفئة: {car}",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=constants.ParseMode.HTML
     )
     register_message(user_id, msg.message_id, query.message.chat_id, context)
     await log_event(update, f"اختار فئة قطع الغيار: {car}")

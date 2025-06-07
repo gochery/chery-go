@@ -1576,10 +1576,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data.startswith("showparts_"):
         try:
-            parts = query.data.split("_", 2)
-            selected_car = parts[1]
-            user_id = int(parts[2])
-        
+            data = query.data.replace("showparts_", "")
+            parts = data.split("_")
+            user_id = int(parts[-1])
+            selected_car = "_".join(parts[:-1])
+
         # خزّن الفئة المختارة في user_data
             if "selected_car" not in context.user_data.get(user_id, {}):
                 context.user_data[user_id] = context.user_data.get(user_id, {})

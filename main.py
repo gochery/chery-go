@@ -195,6 +195,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         register_message(user_id, msg.message_id, chat_id, context)
         return
 
+    # تنظيف مفاتيح image_opened_ لمنع التعارض في فتح الصور القديمة
+    keys_to_remove = [key for key in context.user_data.get(user_id, {}) if key.startswith("image_opened_")]
+    for key in keys_to_remove:
+        del context.user_data[user_id][key]
+
     context.user_data.setdefault(user_id, {})
     context.user_data[user_id]["manual_sent"] = False
 
@@ -349,6 +354,11 @@ async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # ✅ إنشاء جلسة مؤقتة صالحة لمرة واحدة فقط
         context.user_data[user_id] = context.user_data.get(user_id, {})
         context.user_data[user_id]["session_valid"] = True
+
+        # ✅ تنظيف مفاتيح image_opened_ لإعادة السماح بفتح الصور في جلسة جديدة
+        keys_to_remove = [key for key in context.user_data[user_id] if key.startswith("image_opened_")]
+        for key in keys_to_remove:
+            del context.user_data[user_id][key]
 
     # ✅ رفض الدخول في الخاص إن لم يكن هناك جلسة صالحة أو كان متطفلًا
     if chat.type == "private" and (

@@ -1573,7 +1573,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await log_event(update, f"✅ استعلام تصنيفي: {keyword} ضمن {selected_car}")
         return
 
-    elif data.startswith("showparts_"):
+    elif query.data.startswith("showparts_"):
         try:
             _, selected_car, uid = data.split("_", 2)
             user_id = int(uid)

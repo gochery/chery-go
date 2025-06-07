@@ -602,11 +602,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         header = (
                f"<code>🧑‍💼 استعلام خاص بـ {user_name}\n"
                f"🚗 {selected_car}\n"
-               f"🔎 {part_name}</code>\n\n"
          )
 
  # 🔻 جسم النتائج
-        results = f"📌 نتائج البحث عن: {part_name}\n\n"
+        results = f"<code>📌 نتائج البحث عن: {part_name}</code>\n\n"
 
         for idx, row in matches.iterrows():
             results += (

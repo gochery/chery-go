@@ -485,8 +485,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # 🧹 إعادة تعيين في البداية إذا لم يسبق إدخال شيء
         if not context.user_data[admin_id].get("compose_text") and not context.user_data[admin_id].get("compose_media"):
-            record["text"] = ""
-            record["media"] = None
+            if mode == "suggestion":
+                record["text"] = ""
+                record["media"] = None
+            elif mode == "custom_reply":
+                record["reply_text"] = ""
+                record["reply_media"] = None
 
         # ✅ تحديد اسم ومعرف المجموعة بدقة
         group_name = chat.title if chat.type in ["group", "supergroup"] else "خاص"
@@ -500,12 +504,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         record["group_id"] = group_id
         context.user_data[admin_id]["compose_mode"] = mode
 
-        # ✅ حفظ النص
+        # ✅ حفظ النص حسب الوضع
         if message.text:
             context.user_data[admin_id]["compose_text"] = message.text.strip()
-            record["text"] = message.text.strip()
+            if mode == "suggestion":
+                record["text"] = message.text.strip()
+            elif mode == "custom_reply":
+                record["reply_text"] = message.text.strip()
 
-        # ✅ حفظ الوسائط
+        # ✅ حفظ الوسائط حسب الوضع
         elif message.photo or message.video or message.document or message.voice:
             if message.photo:
                 file_id = message.photo[-1].file_id
@@ -520,9 +527,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 file_id = message.voice.file_id
                 media_type = "voice"
             context.user_data[admin_id]["compose_media"] = {"type": media_type, "file_id": file_id}
-            record["media"] = {"type": media_type, "file_id": file_id}
+            if mode == "suggestion":
+                record["media"] = {"type": media_type, "file_id": file_id}
+            elif mode == "custom_reply":
+                record["reply_media"] = {"type": media_type, "file_id": file_id}
 
-        # ✅ أزرار التفاعل
+        # ✅ أزرار التفاعل حسب الوضع
         if mode == "suggestion":
             buttons = [
                 [InlineKeyboardButton("📤 إرسال", callback_data="send_suggestion")],

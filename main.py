@@ -1576,10 +1576,18 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data.startswith("showparts_"):
         try:
+            parts = query.data.split("_", 2)
+            selected_car = parts[1]
+            user_id = int(parts[2])
+        
+        # خزّن الفئة المختارة في user_data
+            if "selected_car" not in context.user_data.get(user_id, {}):
+                context.user_data[user_id] = context.user_data.get(user_id, {})
+            context.user_data[user_id]["selected_car"] = selected_car
+
             await select_car_for_parts(update, context)
         except Exception as e:
             print("🔴 Error in showparts callback:", e)
-        return
 
     elif action == "maintenance":
         context.user_data[user_id]["action"] = "maintenance"

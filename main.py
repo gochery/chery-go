@@ -1451,23 +1451,36 @@ async def show_store_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ### 🟢 تحديث دالة button لتسجيل معلومات المجموعة بشكل صحيح:
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    print("DEBUG: callback_data =", query.data)  # هذي تطبع القيمة في اللوج
+    await query.answer()
+    
+    if query.data.startswith("part_image_"):
+        _, idx, user_id_str = query.data.split("_")
+        user_id = int(user_id_str)
+        idx = int(idx)
+
+        image_url = df_parts.loc[idx, "Image"]
+        if image_url:
+            await query.message.reply_photo(photo=image_url, caption="📸 صورة القطعة المطلوبة")
+        else:
+            await query.answer("❌ لا توجد صورة لهذه القطعة.", show_alert=True)
+        return
+
     data = query.data.split("_")
-
+    
+    # تحديد نوع العملية واليوزر
     if query.data.startswith("catpart_"):
-        # تعامل خاص مع أزرار التصنيفات
-        _, keyword, user_id_str = data
-        user_id = int(user_id_str)
         action = "catpart"
+        keyword = data[1]
+        user_id = int(data[2])
     else:
-        # باقي الأنواع الأخرى مثل parts_1543 أو suggestion_123
-        action, user_id_str = data[0], data[1]
-        user_id = int(user_id_str)
+        action = data[0]
+        user_id = int(data[1])
 
+    # تحقق من هوية المستخدم (لمنع التداخل)
     if query.from_user.id != user_id:
-        requester = await context.bot.get_chat(user_id)
+        user = await context.bot.get_chat(user_id)
         await query.answer(
-            f"❌ هذا الاستعلام خاص بـ {requester.first_name} {requester.last_name} - استخدم الأمر /go",
+            f"❌ هذا الاستعلام خاص بـ {user.full_name} - الرجاء استخدام الأمر /go",
             show_alert=True
         )
         return
@@ -1486,7 +1499,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "يرجى اختيار نوع الاستعلام عن قطع الغيار:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        register_message(user_id, msg.message_id, query.message.chat_id, context)
+        register_message(user_id, msg.message_id, chat.id, context)
         await log_event(update, "فتح قائمة قطع الغيار")
         return
 
@@ -1500,7 +1513,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode=constants.ParseMode.MARKDOWN
         )
-        register_message(user_id, msg.message_id, query.message.chat_id, context)
+        register_message(user_id, msg.message_id, chat.id, context)
         await log_event(update, "تم فتح رابط قطع الغيار الخارجي")
         return
 
@@ -1512,41 +1525,41 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg = await query.edit_message_text(
                 "🚗 اختر فئة السيارة لاستعلام القطع:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
-           )
-            register_message(user_id, msg.message_id, query.message.chat_id, context)
+            )
+            register_message(user_id, msg.message_id, chat.id, context)
         except telegram.error.BadRequest as e:
-             if "Message is not modified" not in str(e):
-                 raise  # فقط تجاهل الخطأ هذا، والباقي اظهره
-
+            if "Message is not modified" not in str(e):
+                raise
         await log_event(update, "اختيار فئة السيارة لقطع الغيار")
         return
 
     elif action == "catpart":
-        data = query.data.split("_")  # هذا هو المطلوب
-        keyword = data[1]  # تأكدنا منه في الأعلى
-        user_id = int(data[2])
+        # تأكد من وجود selected_car
         selected_car = context.user_data[user_id].get("selected_car")
-
         if not selected_car:
             await query.answer("❌ يرجى اختيار فئة السيارة أولاً.", show_alert=True)
             return
 
+        # تصفية البيانات
         filtered_df = df_parts[df_parts["Station No"] == selected_car]
+
+        # البحث بالكلمة المفتاحية مع ضبط الحدود (regex)
+        keyword_regex = fr"(^|\s){keyword}"
         matches = filtered_df[
-            filtered_df["Station Name"]
-            .astype(str)
-            .str.strip()
-            .str.contains(f"^{keyword}|\\s{keyword}", case=False, na=False)
-       ]
+            filtered_df["Station Name"].astype(str).str.contains(keyword_regex, case=False, na=False)
+        ]
 
         if matches.empty:
             await query.answer("❌ لا توجد نتائج ضمن هذا التصنيف.", show_alert=True)
             return
 
+        # حد أقصى للنتائج لتفادي الحظر
+        MAX_RESULTS = 5
+        matches = matches.head(MAX_RESULTS)
+
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
         footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
-
         user_name = query.from_user.full_name
 
         for i, row in matches.iterrows():
@@ -1563,61 +1576,61 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             keyboard = []
-            if pd.notna(row.get("Image")):
+            if pd.notna(row.get("Image")) and row.get("Image") != "":
                 keyboard.append([InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")])
 
-            msg = await query.message.reply_text(
+            await query.message.reply_text(
                 text, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None, parse_mode=ParseMode.HTML
             )
-            register_message(user_id, msg.message_id, query.message.chat_id, context)
+            register_message(user_id, query.message.message_id, chat.id, context)
 
         await log_event(update, f"✅ استعلام تصنيفي: {keyword} ضمن {selected_car}")
         return
 
-    elif query.data.startswith("showparts_"):
+    elif action == "showparts":
         try:
-            data = query.data.replace("showparts_", "")
-            parts = data.split("_")
+            parts = query.data.replace("showparts_", "").split("_")
             user_id = int(parts[-1])
             selected_car = "_".join(parts[:-1])
-
-        # خزّن الفئة المختارة في user_data
-            if "selected_car" not in context.user_data.get(user_id, {}):
-                context.user_data[user_id] = context.user_data.get(user_id, {})
+            context.user_data.setdefault(user_id, {})
             context.user_data[user_id]["selected_car"] = selected_car
-
             await select_car_for_parts(update, context)
         except Exception as e:
             print("🔴 Error in showparts callback:", e)
+        return
 
     elif action == "maintenance":
-        context.user_data[user_id]["action"] = "maintenance"
         cars = df_maintenance["car_type"].dropna().unique().tolist()
         keyboard = [[InlineKeyboardButton(car, callback_data=f"car_{car.replace(' ', '_')}_{user_id}")] for car in cars]
         msg = await query.edit_message_text(
             "اختر فئة السيارة 🚗 :",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        register_message(user_id, msg.message_id, query.message.chat_id, context)
+        register_message(user_id, msg.message_id, chat.id, context)
         await log_event(update, "فتح قائمة صيانة دورية")
         return
 
     elif action == "suggestion":
         context.user_data[user_id]["action"] = "suggestion"
         msg = await query.edit_message_text("✉️ يرجى كتابة اقتراحك أو ملاحظتك أدناه:")
-        register_message(user_id, msg.message_id, query.message.chat_id, context)
+        register_message(user_id, msg.message_id, chat.id, context)
         await log_event(update, "بدأ المستخدم إرسال اقتراح أو ملاحظة")
 
-        # ✅ بدء جلسة جديدة إن لم تكن موجودة
+        # بدء جلسة اقتراح جديدة
         if "active_suggestion_id" not in context.user_data[user_id]:
             suggestion_id = await start_suggestion_session(user_id, context)
+            context.user_data[user_id]["active_suggestion_id"] = suggestion_id
         else:
             suggestion_id = context.user_data[user_id]["active_suggestion_id"]
 
-        # ✅ حفظ معلومات المجموعة داخل الجلسة الصحيحة
-        suggestion_records[user_id][suggestion_id]["group_name"] = chat.title if chat.title else "خاص"
+        # حفظ بيانات الجلسة
+        suggestion_records[user_id][suggestion_id]["group_name"] = chat.title or "خاص"
         suggestion_records[user_id][suggestion_id]["group_id"] = chat.id
         suggestion_records[user_id][suggestion_id]["user_name"] = update.effective_user.full_name
+        return
+
+    else:
+        await query.answer("❌ خيار غير معروف.", show_alert=True)
         return
 
 ### ✅ الدالة المعدلة: handle_suggestion
@@ -2348,9 +2361,9 @@ application.add_handler(CallbackQueryHandler(car_choice, pattern=r"^car_.*_\d+$"
 application.add_handler(CallbackQueryHandler(km_choice, pattern=r"^km_.*_\d+$"))
 application.add_handler(CallbackQueryHandler(send_cost, pattern=r"^cost_\d+_\d+$"))
 application.add_handler(CallbackQueryHandler(send_brochure, pattern=r"^brochure_\d+_\d+$"))
-application.add_handler(CallbackQueryHandler(send_part_image, pattern=r"^part_image_\d+_\d+$"))
 application.add_handler(CallbackQueryHandler(button, pattern=r"^catpart_.*_\d+$"))
 application.add_handler(CallbackQueryHandler(button, pattern=r"^showparts_.*_\d+$"))
+application.add_handler(CallbackQueryHandler(button, pattern=r"^part_image_\d+_\d+$"))
 
 # 🟢 القائمة الرئيسية: صيانة - قطع غيار - دليل - مراكز - اقتراح
 application.add_handler(CallbackQueryHandler(button, pattern=r"^(parts|maintenance|consumable|external|suggestion)_\d+$"))

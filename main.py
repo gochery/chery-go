@@ -1451,6 +1451,7 @@ async def show_store_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ### 🟢 تحديث دالة button لتسجيل معلومات المجموعة بشكل صحيح:
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    print("DEBUG: callback_data =", query.data)  # هذي تطبع القيمة في اللوج
     data = query.data.split("_")
 
     if query.data.startswith("catpart_"):

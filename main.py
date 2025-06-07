@@ -594,16 +594,38 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             register_message(user_id, msg.message_id, chat.id, context)
             return
 
+        # توقيت الحذف
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
-        footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
 
-        response = f"🔍 النتائج لـ <code>{part_name}</code>:\n\n"
+        # رأس الرسالة
+        user_name = message.from_user.first_name
+        header = (
+            f"<code>👤 المستخدم: {user_name}\n🚘 الفئة: {selected_car}</code>\n\n"
+            f"🔍 نتائج البحث عن القطعة: <code>{part_name}</code>\n"
+            f"📸 توجد قطع مصنفة حسب الصور أيضًا\n\n"
+        )
+
+        # جسم النتائج
+        response = ""
         for idx, row in matches.iterrows():
             response += f"🧩 <b>{row['Station Name']}</b>\n🔢 رقم القطعة: <code>{row['Part No']}</code>\n\n"
-        response += footer
 
-        msg = await message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
+    # تذييل
+        footer = f"<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
+
+    # زر "عرض القطع المصنفة"
+        keyboard = [
+            [InlineKeyboardButton("🗂 عرض القطع المصنفة", callback_data=f"showparts_{selected_car}_{user_id}")]
+    ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        msg = await message.reply_text(
+            header + response + footer,
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+            reply_markup=reply_markup
+        )
         register_message(user_id, msg.message_id, chat.id, context)
         return
 

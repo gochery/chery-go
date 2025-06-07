@@ -590,7 +590,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         matches = filtered_df[filtered_df[columns_to_search].apply(lambda x: x.str.contains(part_name, case=False, na=False)).any(axis=1)]
 
         if matches.empty:
-            msg = await message.reply_text("❌ لم يتم العثور على نتائج.")
+            msg = await message.reply_text("❌ لم يتم العثور على نتائج او الادخال خاطي.")
             register_message(user_id, msg.message_id, chat.id, context)
             return
 

@@ -2349,6 +2349,7 @@ application.add_handler(CallbackQueryHandler(send_cost, pattern=r"^cost_\d+_\d+$
 application.add_handler(CallbackQueryHandler(send_brochure, pattern=r"^brochure_\d+_\d+$"))
 application.add_handler(CallbackQueryHandler(send_part_image, pattern=r"^part_image_\d+_\d+$"))
 application.add_handler(CallbackQueryHandler(button, pattern=r"^catpart_.*_\d+$"))
+application.add_handler(CallbackQueryHandler(button, pattern=r"^showparts_.*_\d+$"))
 
 # 🟢 القائمة الرئيسية: صيانة - قطع غيار - دليل - مراكز - اقتراح
 application.add_handler(CallbackQueryHandler(button, pattern=r"^(parts|maintenance|consumable|external|suggestion)_\d+$"))

@@ -618,7 +618,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response += footer
 
 # زر العودة إلى التصنيفات
-        keyboard = [[InlineKeyboardButton("🗂 عرض القطع المصنفة", callback_data=f"showparts_{selected_car}_{user_id}")]]
+        keyboard = [[InlineKeyboardButton("🗂 عرض القطع حسب التصنيف", callback_data=f"showparts_{selected_car}_{user_id}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         msg = await message.reply_text(
@@ -1578,15 +1578,16 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             data = query.data.replace("showparts_", "")
             parts = data.split("_")
-            user_id = int(parts[-1])
-            selected_car = "_".join(parts[:-1])
+            user_id = int(parts[-1])  # آخر جزء هو الـ ID
+            selected_car = "_".join(parts[:-1]).replace("_", " ")  # باقي الأجزاء اسم السيارة
 
             context.user_data.setdefault(user_id, {})
             context.user_data[user_id]["selected_car"] = selected_car
 
             await select_car_for_parts(update, context)
         except Exception as e:
-            print("🔴 Error in showparts callback:", e)
+            logging.error(f"🔴 Error in showparts callback: {e}")
+            await query.answer("❌ حدث خطأ داخلي أثناء تحليل الفئة.", show_alert=True)
         return
 
     elif action == "maintenance":

@@ -1521,7 +1521,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     elif action == "catpart":
-        # هذه الحالة مخصصة للتصنيفات ضمن قطع الغيار
+        data = query.data.split("_")  # هذا هو المطلوب
         keyword = data[1]  # تأكدنا منه في الأعلى
         user_id = int(data[2])
         selected_car = context.user_data[user_id].get("selected_car")

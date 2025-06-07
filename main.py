@@ -1587,8 +1587,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             part_categories = df_parts[df_parts["Station No"] == selected_car]["Station Name"]
             part_keywords = (
-               part_categories.dropna().astype(str).str.extract(r"^(\w+)", expand=False).dropna().unique().tolist()
-           )
+               part_categories.dropna().astype(str).str.split().str[0].dropna().unique().tolist()
+            )
 
             keyboard = [
                 [InlineKeyboardButton(kw, callback_data=f"catpart_{kw}_{user_id}")]

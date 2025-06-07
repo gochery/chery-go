@@ -1556,27 +1556,43 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await log_event(update, f"✅ استعلام تصنيفي: {keyword} ضمن {selected_car}")
         return
 
-    elif action == "showparts":
-        try:
-            parts = query.data.replace("showparts_", "").split("_")
-            user_id = int(parts[-1])
-            selected_car = "_".join(parts[:-1])
-            context.user_data.setdefault(user_id, {})
-            context.user_data[user_id]["selected_car"] = selected_car
-            await select_car_for_parts(update, context)
-        except Exception as e:
-            print("🔴 Error in showparts callback:", e)
-        return
+    elif query.data.startswith("part_image_"):
+        parts = query.data.rsplit("_", 2)  # لضمان أن idx و user_id هما آخر عنصرين
+        if len(parts) == 3:
+            _, idx_str, user_id_str = parts
+            try:
+                user_id = int(user_id_str)
+                idx = int(idx_str)
 
-    elif action == "maintenance":
-        cars = df_maintenance["car_type"].dropna().unique().tolist()
-        keyboard = [[InlineKeyboardButton(car, callback_data=f"car_{car.replace(' ', '_')}_{user_id}")] for car in cars]
-        msg = await query.edit_message_text(
-            "اختر فئة السيارة 🚗 :",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        register_message(user_id, msg.message_id, chat.id, context)
-        await log_event(update, "فتح قائمة صيانة دورية")
+                row = df_parts.loc[idx]
+                image_url = row.get("Image")
+                selected_car = context.user_data[user_id].get("selected_car", "غير معروف")
+                part_name_value = row.get("Station Name", "غير معروف")
+                part_number_value = row.get("Part No", "غير معروف")
+                user_name = query.from_user.full_name
+
+                now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
+                delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
+                footer = f"\n\n<code>⏳ سيتم حذف هذه الصورة تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
+
+                caption = (
+                    f"<code>📸 استعلام خاص بـ {user_name}</code>\n\n"
+                    f"🚗 <b>الفئة:</b> {selected_car}\n"
+                    f"🔹 <b>اسم القطعة:</b> {part_name_value}\n"
+                    f"🔹 <b>رقم القطعة:</b> {part_number_value}"
+                    + footer
+                )
+
+                msg = await query.message.reply_photo(
+                    photo=image_url, caption=caption, parse_mode=ParseMode.HTML
+                )
+                register_message(user_id, msg.message_id, query.message.chat.id, context)
+
+            except Exception as e:
+                await query.answer("⚠️ حدث خطأ أثناء عرض الصورة.", show_alert=True)
+                print("🔴 Error in part_image handler:", e)
+        else:
+            await query.answer("⚠️ تنسيق الزر غير صالح.", show_alert=True)
         return
 
     elif action == "suggestion":

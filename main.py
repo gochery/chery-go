@@ -1573,6 +1573,15 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await log_event(update, f"✅ استعلام تصنيفي: {keyword} ضمن {selected_car}")
         return
 
+    elif data.startswith("showparts_"):
+        try:
+            _, selected_car, uid = data.split("_", 2)
+            user_id = int(uid)
+            await show_classified_parts_menu(update, context, user_id, selected_car)
+        except Exception as e:
+            print("🔴 Error in showparts callback:", e)
+        return
+
     elif action == "maintenance":
         context.user_data[user_id]["action"] = "maintenance"
         cars = df_maintenance["car_type"].dropna().unique().tolist()

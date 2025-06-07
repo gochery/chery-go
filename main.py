@@ -143,8 +143,22 @@ async def log_event(update: Update, message: str, level="info"):
         
 # ✅ دالة البدء async
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    chat = update.effective_chat
+    user_id = user.id
+    chat_id = chat.id
+    user_name = user.full_name
+
+    # ✅ محاولة حذف رسالة /start أو /go فوراً بأمان
+    if update.message:
+        try:
+            message_id = update.message.message_id
+            if message_id:
+                await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+        except Exception as e:
+            logging.warning(f"[DELETE] فشل حذف رسالة البداية: {e}")
+
     if context.bot_data.get("maintenance_mode"):
-        user_name = update.effective_user.full_name
         msg = await update.message.reply_text(
             f"🛠️ عزيزي {user_name}\n\nبرنامج GO قيد التحديث والصيانة حالياً.\n🔄 الرجاء المحاولة لاحقاً."
         )
@@ -153,18 +167,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             when=60
         )
         return
-
-    user = update.effective_user
-    chat = update.effective_chat
-    user_id = user.id
-    chat_id = chat.id
-    user_name = user.full_name
-
-    if update.message:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=update.message.message_id)
-        except:
-            pass
 
     if chat.type == "private" and not context.user_data.get(user_id, {}).get("session_valid") and user_id not in AUTHORIZED_USERS:
         text = update.message.text.strip().lower() if update.message else ""
@@ -337,6 +339,7 @@ async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     user_name = user.full_name
     chat_id = chat.id
+    message = update.effective_message
 
     if chat.type != "private":
         context.bot_data[user_id] = {
@@ -346,14 +349,11 @@ async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         logging.info(f"[GO من المجموعة] سجلنا بيانات المجموعة {chat.title} / {chat.id} للمستخدم {user.full_name}")
 
-        # ✅ إنشاء جلسة مؤقتة صالحة لمرة واحدة فقط
-        context.user_data[user_id] = context.user_data.get(user_id, {})
-        context.user_data[user_id]["session_valid"] = True
+        # ✅ تفعيل جلسة مؤقتة
+        context.user_data["session_valid"] = True
 
-    # ✅ رفض الدخول في الخاص إن لم يكن هناك جلسة صالحة أو كان متطفلًا
-    if chat.type == "private" and (
-        not context.user_data.get(user_id, {}).get("session_valid")
-    ) and user_id not in AUTHORIZED_USERS:
+    # ✅ منع الوصول من الخاص بدون جلسة مفعلة أو بدون صلاحية
+    if chat.type == "private" and not context.user_data.get("session_valid") and user_id not in AUTHORIZED_USERS:
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
 
@@ -366,7 +366,7 @@ async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         delete_block = f"`⏳ سيتم حذف هذا التنبيه تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`"
 
-        msg = await update.message.reply_text(
+        msg = await message.reply_text(
             f"{user_block}\n\n{alert_message}\n\n{delete_block}",
             parse_mode=constants.ParseMode.MARKDOWN,
             disable_web_page_preview=True
@@ -374,7 +374,7 @@ async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         register_message(user_id, msg.message_id, chat_id, context)
         return
 
-    # ✅ تابع تنفيذ start
+    # ✅ متابعة تنفيذ دالة start مباشرة
     await start(update, context)
 
 async def start_suggestion_session(user_id, context):

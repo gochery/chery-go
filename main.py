@@ -418,139 +418,94 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     admin_id = user.id
     chat = update.effective_chat
-    user_id = user.id
     chat_id = chat.id
+    user_id = user.id
     user_name = user.full_name
 
-    # ✅ تعريف action بشكل آمن
     action = context.user_data.get(admin_id, {}).get("action")
 
     # ✅ حذف مشرف
     if action == "awaiting_admin_removal":
         try:
-            global df_admins  # ← استخدم النسخة المحمّلة مسبقًا
-
             target_id = int(message.text.strip())
-
             if target_id == 1543083749:
                 await message.reply_text("🚫 لا يمكن حذف المدير الأعلى.")
                 return
-
             if target_id not in df_admins["manager_id"].astype(int).values:
-                await message.reply_text("❌ هذا المشرف غير موجود.")
+                await message.reply_text("❌ هذا المعرف غير موجود في قائمة المشرفين.")
                 return
 
-            # حذف من الذاكرة
             df_admins = df_admins[df_admins["manager_id"].astype(int) != target_id]
-
-            # تحديث القائمة الحية
             if target_id in AUTHORIZED_USERS:
                 AUTHORIZED_USERS.remove(target_id)
 
-            # حفظ التغييرات
             with pd.ExcelWriter("bot_data.xlsx", engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
                 df_admins.to_excel(writer, sheet_name="managers", index=False)
 
-            await message.reply_text(f"🗑️ تم حذف المشرف بنجاح: `{target_id}`", parse_mode=ParseMode.MARKDOWN)
-
+            await message.reply_text(f"🗑️ تم حذف المشرف بنجاح:\n<code>{target_id}</code>", parse_mode="HTML")
         except Exception as e:
-            await message.reply_text(f"❌ فشل أثناء حذف المشرف:\n{e}")
-
-        context.user_data[user_id]["action"] = None
+            await message.reply_text(f"❌ حدث خطأ أثناء حذف المشرف:\n<code>{e}</code>", parse_mode="HTML")
+        context.user_data[admin_id]["action"] = None
         return
 
-    # ✅ إضافة مشرف من لوحة التحكم
-    if context.user_data.get(admin_id, {}).get("action") == "awaiting_new_admin_id":
+    # ✅ إضافة مشرف جديد
+    if action == "awaiting_new_admin_id":
         try:
             text = message.text.strip()
             if not text.isdigit():
                 await message.reply_text("❌ يجب إدخال رقم ID رقمي صالح.")
                 return
-
             new_admin_id = int(text)
             if new_admin_id in AUTHORIZED_USERS:
                 await message.reply_text("ℹ️ هذا المشرف موجود مسبقًا.")
                 return
 
-            # تحديث القائمة الحية
             AUTHORIZED_USERS.append(new_admin_id)
             df_admins = pd.concat([df_admins, pd.DataFrame([{"manager_id": new_admin_id}])], ignore_index=True)
-
-            # حفظ إلى Excel
             with pd.ExcelWriter("bot_data.xlsx", engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
                 df_admins.to_excel(writer, sheet_name="managers", index=False)
 
-            await message.reply_text(f"✅ تم إضافة المشرف: `{new_admin_id}`", parse_mode=ParseMode.MARKDOWN)
-
+            await message.reply_text(f"✅ تم إضافة المشرف:\n<code>{new_admin_id}</code>", parse_mode="HTML")
         except Exception as e:
-            await message.reply_text(f"❌ فشل أثناء حفظ الملف:\n{e}")
-
-        context.user_data[admin_id]["action"] = None
-        return
-        
-    # ✅ تحديد المستخدم الفعلي المرتبط بالرد
-    user_id = context.user_data.get(admin_id, {}).get("custom_reply_for", admin_id)
-    mode = context.user_data.get(user_id, {}).get("action") or context.user_data.get(admin_id, {}).get("compose_mode")
-
-    # ✅ منطق إضافة مشرف جديد (من قائمة التحكم)
-    if context.user_data.get(admin_id, {}).get("action") == "awaiting_new_admin_id":
-        text = message.text.strip()
-        if not text.isdigit():
-            await message.reply_text("❌ يجب إدخال رقم ID رقمي صالح.")
-            return
-
-        new_admin_id = int(text)
-        if new_admin_id in AUTHORIZED_USERS:
-            await message.reply_text("ℹ️ هذا المشرف موجود مسبقًا.")
-            return
-
-        AUTHORIZED_USERS.append(new_admin_id)
-
-        try:
-            df_admins = pd.read_excel("bot_data.xlsx", sheet_name="managers")
-            df_admins = pd.concat([df_admins, pd.DataFrame([{"manager_id": new_admin_id}])], ignore_index=True)
-            with pd.ExcelWriter("bot_data.xlsx", engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
-                df_admins.to_excel(writer, sheet_name="managers", index=False)
-            await message.reply_text(f"✅ تم إضافة المشرف: `{new_admin_id}`", parse_mode=constants.ParseMode.MARKDOWN)
-        except Exception as e:
-            await message.reply_text(f"❌ فشل أثناء حفظ الملف:\n{e}")
-
+            await message.reply_text(f"❌ فشل أثناء حفظ الملف:\n<code>{e}</code>", parse_mode="HTML")
         context.user_data[admin_id]["action"] = None
         return
 
-    # ✅ معالجة الاقتراح أو الرد المخصص
+    # ✅ حالة إرسال اقتراح أو رد مخصص
+    actual_user_id = context.user_data.get(admin_id, {}).get("custom_reply_for", admin_id)
+    mode = context.user_data.get(actual_user_id, {}).get("action") or context.user_data.get(admin_id, {}).get("compose_mode")
+
     if mode in ["suggestion", "custom_reply"]:
-        context.user_data.setdefault(user_id, {})
-
-        suggestion_id = context.user_data[user_id].get("active_suggestion_id")
+        context.user_data.setdefault(actual_user_id, {})
+        suggestion_id = context.user_data[actual_user_id].get("active_suggestion_id")
         if not suggestion_id:
-            suggestion_id = await start_suggestion_session(user_id, context)
+            suggestion_id = await start_suggestion_session(actual_user_id, context)
 
-        record = suggestion_records[user_id][suggestion_id]
+        record = suggestion_records[actual_user_id][suggestion_id]
 
-        # 🧹 تصفير الحقول
+        # 🧹 إعادة تعيين في البداية إذا لم يسبق إدخال شيء
         if not context.user_data[admin_id].get("compose_text") and not context.user_data[admin_id].get("compose_media"):
             record["text"] = ""
             record["media"] = None
 
-        group_name = chat.title if chat.type in ['group', 'supergroup', 'channel'] else "خاص"
+        # ✅ تحديد اسم ومعرف المجموعة بدقة
+        group_name = chat.title if chat.type in ["group", "supergroup"] else "خاص"
         group_id = chat.id
-
-        if group_name == "خاص" or group_id == user_id:
-            fallback = context.user_data.get(user_id, {}) or context.bot_data.get(user_id, {})
+        if group_name == "خاص" or group_id == actual_user_id:
+            fallback = context.user_data.get(actual_user_id, {}) or context.bot_data.get(actual_user_id, {})
             group_name = fallback.get("group_title", "غير معروف")
-            group_id = fallback.get("group_id", user_id)
+            group_id = fallback.get("group_id", actual_user_id)
 
         record["group_name"] = group_name
         record["group_id"] = group_id
         context.user_data[admin_id]["compose_mode"] = mode
 
-        # ✅ تسجيل النص
+        # ✅ حفظ النص
         if message.text:
             context.user_data[admin_id]["compose_text"] = message.text.strip()
             record["text"] = message.text.strip()
 
-        # ✅ تسجيل الوسائط
+        # ✅ حفظ الوسائط
         elif message.photo or message.video or message.document or message.voice:
             if message.photo:
                 file_id = message.photo[-1].file_id
@@ -567,13 +522,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data[admin_id]["compose_media"] = {"type": media_type, "file_id": file_id}
             record["media"] = {"type": media_type, "file_id": file_id}
 
-        # ✅ أزرار التحكم
+        # ✅ أزرار التفاعل
         if mode == "suggestion":
             buttons = [
                 [InlineKeyboardButton("📤 إرسال", callback_data="send_suggestion")],
                 [InlineKeyboardButton("❌ إلغاء", callback_data="cancel_suggestion")]
             ]
-        elif mode == "custom_reply":
+        else:
             buttons = [
                 [InlineKeyboardButton("📤 إرسال الرد", callback_data="submit_admin_reply")],
                 [InlineKeyboardButton("❌ إلغاء", callback_data="cancel_custom_reply")]
@@ -592,75 +547,45 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text("⚠️ لم يتم تسجيل أي محتوى. الرجاء إدخال نص أو وسائط.")
         return
 
-# ✅ استعلام قطع غيار
+    # ✅ استعلام قطع غيار
     if context.user_data.get(user_id, {}).get("action") == "parts" and message.text:
         part_name = message.text.strip().lower()
-
-    # 🔁 منع إعادة اختيار الفئة - فقط نسمح بمحاولات بحث متعددة
         context.user_data[user_id].setdefault("search_attempts", 0)
         context.user_data[user_id]["search_attempts"] += 1
 
         if context.user_data[user_id]["search_attempts"] > 3:
-            msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث خلال الجلسة.\n🔁 ابدأ من جديد باستخدام go من المجموعة")
+            msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث.\n🔁 ابدأ من جديد باستخدام /go من المجموعة.")
             register_message(user_id, msg.message_id, chat.id, context)
             context.user_data[user_id].clear()
             return
 
         selected_car = context.user_data[user_id].get("selected_car")
-
         if not selected_car:
             msg = await message.reply_text("❗ لم يتم اختيار فئة السيارة.")
             register_message(user_id, msg.message_id, chat.id, context)
             return
 
-    # تصفية الصفوف الخاصة بفئة السيارة
         filtered_df = df_parts[df_parts["Station No"] == selected_car]
-
-    # الأعمدة التي نريد البحث فيها — حسب بنية ملف PARTS
         columns_to_search = ["Station Name", "Part No"]
-
-    # البحث داخل الأعمدة المحددة
-        matches = filtered_df[
-            filtered_df[columns_to_search].apply(lambda x: x.str.contains(part_name, case=False, na=False)).any(axis=1)
-        ]
+        matches = filtered_df[filtered_df[columns_to_search].apply(lambda x: x.str.contains(part_name, case=False, na=False)).any(axis=1)]
 
         if matches.empty:
-            msg = await message.reply_text("❌ لم يتم العثور على نتائج ضمن فئة السيارة أو الادخال خاطئ.")
+            msg = await message.reply_text("❌ لم يتم العثور على نتائج.")
             register_message(user_id, msg.message_id, chat.id, context)
             return
 
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
-        footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
+        footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
 
-        user_name = update.effective_user.full_name
-        remaining = 3 - context.user_data[user_id]["search_attempts"]
+        response = f"🔍 النتائج لـ <code>{part_name}</code>:\n\n"
+        for idx, row in matches.iterrows():
+            response += f"🧩 <b>{row['Station Name']}</b>\n🔢 رقم القطعة: <code>{row['Part No']}</code>\n\n"
+        response += footer
 
-        for i, row in matches.iterrows():
-            part_name_value = row.get("Station Name", "غير معروف")
-            part_number_value = row.get("Part No", "غير معروف")
-
-            text = f"""<code>🧑‍💼 استعلام خاص بـ {user_name}</code>
-
-🚗 <b>الفئة:</b> {selected_car}
-🔹 <b>اسم القطعة:</b> {part_name_value}
-🔹 <b>رقم القطعة:</b> {part_number_value}
-
-📌 تبقّى لك: ({remaining} من 3) محاولات""" + footer
-
-        keyboard = []
-        if pd.notna(row.get("Image")):
-            keyboard.append([InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")])
-        msg = await message.reply_text(
-            text,
-            reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
-            parse_mode=ParseMode.HTML
-        )
+        msg = await message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True)
         register_message(user_id, msg.message_id, chat.id, context)
-
-    await log_event(update, f"✅ بحث دقيق ضمن {selected_car}: {part_name}")
-    register_message(user_id, message.message_id, chat.id, context)
-    return
+        return
 
 async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

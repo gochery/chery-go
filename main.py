@@ -148,68 +148,67 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     chat_id = chat.id
     user_name = user.full_name
+    message = update.message
 
-    # ✅ محاولة حذف رسالة /start أو /go فوراً بأمان
-    if update.message:
+    # ✅ حذف رسالة البداية إذا كانت موجودة
+    if message:
         try:
-            message_id = update.message.message_id
-            if message_id:
-                await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+            await message.delete()
         except Exception as e:
             logging.warning(f"[DELETE] فشل حذف رسالة البداية: {e}")
 
+    # ✅ وضع الصيانة
     if context.bot_data.get("maintenance_mode"):
-        msg = await update.message.reply_text(
-            f"🛠️ عزيزي {user_name}\n\nبرنامج GO قيد التحديث والصيانة حالياً.\n🔄 الرجاء المحاولة لاحقاً."
+        msg = await message.reply_text(
+            f"🛠️ عزيزي {user_name}\n\nبرنامج GO قيد التحديث حالياً.\n🔄 الرجاء المحاولة لاحقاً."
         )
-        context.job_queue.run_once(
-            lambda c: c.bot.delete_message(chat_id=msg.chat_id, message_id=msg.message_id),
-            when=60
-        )
+        context.job_queue.run_once(lambda c: c.bot.delete_message(chat_id=msg.chat_id, message_id=msg.message_id), when=60)
         return
 
+    # ✅ تحقق من صلاحية الوصول في الخاص
     if chat.type == "private" and not context.user_data.get(user_id, {}).get("session_valid") and user_id not in AUTHORIZED_USERS:
-        text = update.message.text.strip().lower() if update.message else ""
+        text = message.text.strip().lower() if message else ""
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
         user_block = f"`🧑‍🏫 عزيزي {user_name}`"
-        delete_block = f"`⏳ سيتم حذف هذا التنبيه تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`"
+        delete_block = f"`⏳ سيتم حذف هذا التنبيه خلال 5 دقائق ({delete_time} / 🇸🇦)`"
 
         if text in ["/start", "start", "go", "/go"] and "start=go" not in text:
-            alert_message = (
+            alert = (
                 "📣 يسعدنا اهتمامك بخدمات برنامج GO!\n\n"
                 "❌ لا يمكنك بدء الخدمة مباشرة من الخاص.\n"
-                "🔐 لضمان الخصوصية، نرجو الانضمام إلى المجموعة وكتابة  go هناك.\n\n"
+                "🔐 الرجاء الانضمام إلى المجموعة وكتابة كلمة go هناك.\n\n"
                 "[👥 اضغط هنا للانضمام إلى مجموعة CHERY](https://t.me/CHERYKSA_group)"
             )
         else:
-            alert_message = (
-                "🚫 عذرًا، لا يمكن الدخول من الخاص بهذه الطريقة.\n"
-                "🔐 هذه الخدمة مخصصة فقط لمن بدأ الجلسة من المجموعة بنفسه.\n"
-                "✳️ نرجو العودة إلى المجموعة وكتابة كلمة go يدويًا لإعادة التفعيل."
+            alert = (
+                "🚫 لا يمكن الدخول من الخاص مباشرة.\n"
+                "🔐 هذه الخدمة فقط لمن بدأ الجلسة من المجموعة.\n"
+                "✳️ اكتب go داخل المجموعة لإعادة التفعيل."
             )
 
-        msg = await update.message.reply_text(
-            f"{user_block}\n\n{alert_message}\n\n{delete_block}",
+        msg = await message.reply_text(
+            f"{user_block}\n\n{alert}\n\n{delete_block}",
             parse_mode=constants.ParseMode.MARKDOWN,
             disable_web_page_preview=True
         )
         register_message(user_id, msg.message_id, chat_id, context)
         return
 
+    # ✅ تسجيل المستخدم إذا جديد
     context.user_data.setdefault(user_id, {})
     context.user_data[user_id]["manual_sent"] = False
-
     global ALL_USERS
     if user_id not in ALL_USERS:
         ALL_USERS.add(user_id)
         try:
-            df_users = pd.DataFrame(sorted(ALL_USERS), columns=["user_id"])
+            df = pd.DataFrame(sorted(ALL_USERS), columns=["user_id"])
             with pd.ExcelWriter("bot_data.xlsx", engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
-                df_users.to_excel(writer, sheet_name="all_users_log", index=False)
+                df.to_excel(writer, sheet_name="all_users_log", index=False)
         except Exception as e:
-            logging.error(f"[SAVE USERS] فشل حفظ المستخدمين في Excel: {e}")
+            logging.error(f"[USERS] فشل حفظ المستخدمين: {e}")
 
+    # ✅ تحديث إحصائيات /go
     try:
         stats_df = pd.read_excel("bot_data.xlsx", sheet_name="bot_stats")
     except:
@@ -224,20 +223,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with pd.ExcelWriter("bot_data.xlsx", engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
             stats_df.to_excel(writer, sheet_name="bot_stats", index=False)
     except Exception as e:
-        logging.error(f"[SAVE STATS] فشل حفظ عدد /go إلى Excel: {e}")
+        logging.error(f"[STATS] فشل تحديث الإحصائيات: {e}")
 
+    # ✅ استرجاع بيانات المجموعة
     group_title = context.user_data[user_id].get("group_title", "غير معروف")
     group_id = context.user_data[user_id].get("group_id", user_id)
-    previous_user_name = context.user_data[user_id].get("user_name", user_name)
+    previous_name = context.user_data[user_id].get("user_name", user_name)
 
     if chat_id > 0 and user_id in context.bot_data:
-        bot_data = context.bot_data[user_id]
-        context.user_data[user_id].update(bot_data)
-        del context.bot_data[user_id]
-
+        bot_data = context.bot_data.pop(user_id)
         group_title = bot_data.get("group_title", "غير معروف")
         group_id = bot_data.get("group_id", user_id)
-        previous_user_name = bot_data.get("user_name", user_name)
+        previous_name = bot_data.get("user_name", user_name)
+        context.user_data[user_id].update(bot_data)
 
     context.user_data[user_id].update({
         "action": None,
@@ -246,65 +244,53 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "compose_mode": None,
         "group_title": group_title,
         "group_id": group_id,
-        "user_name": previous_user_name,
+        "user_name": previous_name,
         "final_group_name": group_title,
         "final_group_id": group_id
     })
 
     await log_event(update, "بدأ المستخدم التفاعل مع /go")
 
-    if chat_id < 0:
+    # ✅ إذا كان في مجموعة: أرسل بوستر
+    if chat.type != "private":
         context.bot_data[user_id] = {
-            "group_title": update.effective_chat.title or "غير معروف",
-            "group_id": chat_id,
+            "group_title": chat.title or "غير معروف",
+            "group_id": chat.id,
             "user_name": user_name
         }
-
-        photo_path = "GO-CHERY.JPG"
-        now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-        delete_time = (now_saudi + timedelta(seconds=90)).strftime("%I:%M %p")
-
-        user_block = f"`🧑‍💼 مرحباً {user_name}`"
-        program_description = (
-            "🤖 *نظام الاستعلامات الذكي لعملاء شيري برو*\n"
-            "🔧 صيانة دورية • قطع غيار • دليل المالك • مراكز خدمة ومتاجر\n"
-            "🛠️ والمزيد من الخدمات المتكاملة بين يديك."
-        )
-        delete_block = f"`⏳ سيتم حذف هذا المنشور خلال 90 ثانية ({delete_time} / 🇸🇦)`"
-
-        full_caption = (
-           f"{user_block}\n\n"
-           f"{program_description}\n\n"
-           "💡 اضغط الزر أدناه لبدء خدمتك في الخاص:\n\n"
-           f"{delete_block}"
-        )
-
-        bot_username = context.bot.username
-        link = f"https://t.me/{bot_username}?start=go"
-        keyboard = [[InlineKeyboardButton("🚀  انطلق  مع  برنامج  GO", url=link)]]
-
         try:
+            bot_username = context.bot.username
+            link = f"https://t.me/{bot_username}?start=go"
+            keyboard = [[InlineKeyboardButton("🚀  انطلق  مع  برنامج  GO", url=link)]]
+            photo_path = "GO-CHERY.JPG"
+            now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
+            delete_time = (now_saudi + timedelta(seconds=90)).strftime("%I:%M %p")
+            caption = (
+                f"`🧑‍💼 مرحباً {user_name}`\n\n"
+                "🤖 *نظام الاستعلامات الذكي لعملاء شيري برو*\n"
+                "🔧 صيانة • قطع غيار • دليل المالك • مراكز\n\n"
+                f"`⏳ سيتم حذف هذا المنشور خلال 90 ثانية ({delete_time} / 🇸🇦)`"
+            )
             msg = await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=open(photo_path, "rb"),
-                caption=full_caption,
+                caption=caption,
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode=constants.ParseMode.MARKDOWN
             )
             register_message(user_id, msg.message_id, chat_id, context)
-            if context and hasattr(context, "job_queue") and context.job_queue:
-                context.job_queue.run_once(
-                    schedule_delete_message,
-                    timedelta(seconds=90),
-                    data={"user_id": user_id, "message_id": msg.message_id, "chat_id": chat_id}
-                )
+            context.job_queue.run_once(
+                schedule_delete_message,
+                timedelta(seconds=90),
+                data={"user_id": user_id, "message_id": msg.message_id, "chat_id": chat_id}
+            )
         except Exception as e:
-            logging.error(f"فشل في إرسال الترحيب بالصورة: {e}")
+            logging.error(f"[POSTER] فشل إرسال البوستر: {e}")
         return
 
+    # ✅ الخاص: أرسل القائمة
     context.user_data[user_id].pop("suggestion_used", None)
-
-    keyboard = [
+    services = [
         [InlineKeyboardButton("🔧 استعلام  قطع الغيار", callback_data=f"parts_{user_id}")],
         [InlineKeyboardButton("🚗 استعلام  الصيانة الدورية", callback_data=f"maintenance_{user_id}")],
         [InlineKeyboardButton("📘 عرض دليل المالك CHERY", callback_data=f"manual_{user_id}")],
@@ -315,17 +301,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
     delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
 
-    msg1 = await update.message.reply_text(
+    msg1 = await message.reply_text(
         f"`🧑‍💼 مرحباً {user_name}`\n\n"
-        "🤖 لقد وصلت إلى *برنامج GO / CHERY* التفاعلي.\n"
-        "💡 يمكنك الآن بدء رحلتك الذكية معنا في خدمات الصيانة وقطع الغيار والمزيد في مكان واحد.\n\n"
-        f"`⏳ سيتم حذف هذه الرسالة تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`",
+        "🤖 لقد وصلت إلى *برنامج GO / CHERY*.\n"
+        "💡 يمكنك الآن الاستفادة من خدمات الصيانة، قطع الغيار، الدليل، وغير ذلك.\n\n"
+        f"`⏳ سيتم حذف هذه الرسالة خلال 5 دقائق ({delete_time} / 🇸🇦)`",
         parse_mode=constants.ParseMode.MARKDOWN
     )
-
-    msg2 = await update.message.reply_text(
-        "اختار الخدمة المطلوبة 🛠️ :",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+    msg2 = await message.reply_text(
+        "اختَر الخدمة المطلوبة 🛠️:",
+        reply_markup=InlineKeyboardMarkup(services)
     )
 
     register_message(user_id, msg1.message_id, chat_id, context)
@@ -334,48 +319,81 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data[user_id]["session_valid"] = False
 
 async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
     user = update.effective_user
+    chat = update.effective_chat
+    message = update.message
     user_id = user.id
-    user_name = user.full_name
     chat_id = chat.id
-    message = update.effective_message
+    text = message.text.strip() if message and message.text else ""
 
+    # إذا كانت الرسالة في المجموعة أو القناة (chat.type != private)
     if chat.type != "private":
+        # تخزين بيانات المجموعة في bot_data ليتم استخدامها لاحقاً في الخاص
         context.bot_data[user_id] = {
             "group_title": chat.title or "غير معروف",
             "group_id": chat.id,
             "user_name": user.full_name
         }
-        logging.info(f"[GO من المجموعة] سجلنا بيانات المجموعة {chat.title} / {chat.id} للمستخدم {user.full_name}")
 
-        # ✅ تفعيل جلسة مؤقتة
-        context.user_data["session_valid"] = True
+        # فقط قبول رسائل تحتوي على "go" (أو /go)
+        if text.lower() in ["go", "/go"]:
+            # تفعيل جلسة المستخدم في data الخاص به
+            context.user_data[user_id]["session_valid"] = True
 
-    # ✅ منع الوصول من الخاص بدون جلسة مفعلة أو بدون صلاحية
-    if chat.type == "private" and not context.user_data.get("session_valid") and user_id not in AUTHORIZED_USERS:
-        now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-        delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
+            # إعادة توجيه المستخدم للخاص مع رسالة ترحيب
+            try:
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=(
+                        f"🧑‍💼 مرحباً {user.full_name}\n\n"
+                        "تم تفعيل الجلسة الخاصة بك بنجاح.\n"
+                        "الآن يمكنك استخدام جميع خدمات برنامج GO في الخاص."
+                    )
+                )
+            except Exception as e:
+                logging.error(f"[GO] فشل إرسال رسالة الخاص للمستخدم {user_id}: {e}")
 
-        user_block = f"`🧑‍🏫 عزيزي {user_name}`"
-        alert_message = (
-            "📣 يسعدنا اهتمامك بخدمات برنامج GO!\n\n"
-            "❌ لا يمكنك بدء الخدمة مباشرة من الخاص.\n"
-            "🔐 الرجاء الدخول إلى المجموعة وكتابة go بنفسك.\n\n"
-            "[👥 اضغط هنا للانضمام إلى مجموعة CHERY](https://t.me/CHERYKSA_group)"
-        )
-        delete_block = f"`⏳ سيتم حذف هذا التنبيه تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`"
+            # حذف رسالة المستخدم في المجموعة بعد ثواني قليلة
+            try:
+                await message.delete()
+            except Exception as e:
+                logging.warning(f"[GO] فشل حذف رسالة go في المجموعة: {e}")
 
-        msg = await message.reply_text(
-            f"{user_block}\n\n{alert_message}\n\n{delete_block}",
-            parse_mode=constants.ParseMode.MARKDOWN,
-            disable_web_page_preview=True
-        )
-        register_message(user_id, msg.message_id, chat_id, context)
+        else:
+            # إذا الرسالة ليست "go" أو "/go" في المجموعة، تجاهل أو حذف حسب الحاجة
+            # (يمكنك هنا حذف الرسالة أو عدم الرد)
+            pass
+
         return
 
-    # ✅ متابعة تنفيذ دالة start مباشرة
-    await start(update, context)
+    # إذا كانت الرسالة في الخاص (private chat)
+    elif chat.type == "private":
+        # التحقق من صلاحية الجلسة (يجب أن يكون بدأها من المجموعة)
+        if not context.user_data.get(user_id, {}).get("session_valid", False):
+            await message.reply_text(
+                "❌ لا يمكنك بدء الخدمة من الخاص مباشرةً.\n"
+                "🔐 الرجاء الذهاب إلى مجموعة شيري وكتابة كلمة go هناك."
+            )
+            return
+
+        # تنفيذ منطق استلام الأوامر أو النصوص في الخاص بعد تفعيل الجلسة
+        # هنا يمكنك إضافة معالجة نصوص المستخدم في الخاص، مثلاً:
+        # - استقبال اقتراحات
+        # - البحث في قطع الغيار
+        # - الاستعلام عن الصيانة
+        # وهكذا...
+
+        # مثال بسيط:
+        await message.reply_text(
+            f"📥 لقد استلمت رسالتك: {text}\n"
+            "🔧 سيتم معالجة طلبك قريبًا."
+        )
+
+        # من الأفضل وضع منطق أكثر تفصيلاً حسب الطلبات
+
+    else:
+        # في حال لم يكن في مجموعة أو خاص (نادر الحدوث)
+        await message.reply_text("⚠️ غير قادر على معالجة رسالتك في هذا النوع من الدردشات.")
 
 async def start_suggestion_session(user_id, context):
     from uuid import uuid4

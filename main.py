@@ -1575,33 +1575,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data.startswith("showparts_"):
         try:
-            _, selected_car, uid = data.split("_", 2)
-            user_id = int(uid)
-            context.user_data[user_id]["selected_car"] = selected_car
-
-        # إعادة استخدام نفس منطق select_car_for_parts
-            car_categories = df_parts["Station No"].dropna().unique().tolist()
-            if selected_car not in car_categories:
-                await query.answer("❌ فئة السيارة غير موجودة في البيانات.", show_alert=True)
-                return
-
-            part_categories = df_parts[df_parts["Station No"] == selected_car]["Station Name"]
-            part_keywords = (
-               part_categories.dropna().astype(str).str.split().str[0].dropna().unique().tolist()
-            )
-
-            keyboard = [
-                [InlineKeyboardButton(kw, callback_data=f"catpart_{kw}_{user_id}")]
-                for kw in sorted(part_keywords)
-            ]
-
-            msg = await query.edit_message_text(
-                f"🧩 التصنيفات المتوفرة للسيارة:\n<code>{selected_car}</code>",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode=ParseMode.HTML
-            )
-            register_message(user_id, msg.message_id, query.message.chat_id, context)
-            await log_event(update, f"عرض تصنيفات قطع السيارة {selected_car}")
+            await select_car_for_parts(update, context)
         except Exception as e:
             print("🔴 Error in showparts callback:", e)
         return

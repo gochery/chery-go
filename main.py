@@ -600,7 +600,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # 🔻 رأس صندوق المعلومات
         header = (
-               f"<code>       🧑‍💼 استعلام خاص بـ {user_name}\n"
+               f"<code>🧑‍💼 استعلام خاص بـ {user_name}\n"
                f"🚗 {selected_car}\n"
                f"🔎 {part_name}</code>\n\n"
          )

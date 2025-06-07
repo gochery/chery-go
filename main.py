@@ -597,28 +597,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_name = message.from_user.full_name
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
-        footer = f"\n\n📸 هذا البحث لا يشمل الصور، يمكنك استعراضها من القائمة التصنيفية حسب الفئة\n" \
-                 f"⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} 🇸🇦)"
 
-# رأس الرسالة
-        response = (
-        f"<code>👤 المستخدم: {user_name}\n"
-        f"🚗 الفئة: {selected_car}\n"
-        f"🔎 البحث: {part_name}</code>\n\n"
-        f"🔍 نتائج البحث:\n\n"
-    )
+# 🔻 رأس صندوق المعلومات
+        header = (
+               f"<code>👤 {user_name}\n"
+               f"🚗 {selected_car}\n"
+               f"🔎 {part_name}</code>\n\n"
+         )
 
-# جسم النتائج
+# 🔻 جسم النتائج (نص عادي)
+        results = ""
         for idx, row in matches.iterrows():
-           response += (
-               f"🧩 <b>{row['Station Name']}</b>\n"
-               f"🔢 رقم القطعة: <code>{row['Part No']}</code>\n\n"
-           )
+            results += (
+                f"🧩 {row['Station Name']}\n"
+               f"🔢 رقم القطعة: {row['Part No']}\n\n"
+        )
 
-        response += footer
+# 🔻 التذييل (صندوق نحيف يشمل التنبيه)
+       footer = (
+           f"<code>📸 الصور متاحة عبر التصنيفات\n"
+           f"⏳ الحذف التلقائي خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
+       )
 
-# زر العودة إلى التصنيفات
-        keyboard = [[InlineKeyboardButton("🗂 عرض القطع حسب التصنيف", callback_data=f"showparts_{selected_car}_{user_id}")]]
+# 🔻 دمج كامل الرسالة
+        response = header + results + footer
+
+# الزر
+        safe_car_name = selected_car.replace(" ", "_")
+        callback_data = f"showparts_{safe_car_name}_{user_id}"
+        keyboard = [[InlineKeyboardButton("🗂 عرض القطع حسب التصنيف", callback_data=callback_data)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         msg = await message.reply_text(
@@ -1452,9 +1459,36 @@ async def show_store_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ### 🟢 تحديث دالة button لتسجيل معلومات المجموعة بشكل صحيح:
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    data = query.data.split("_")
+    raw_data = query.data
 
-    if query.data.startswith("catpart_"):
+    # ✅ معالجة خاصة لزر showparts_
+    if raw_data.startswith("showparts_"):
+        try:
+            data = raw_data[len("showparts_"):]
+            last_underscore = data.rfind("_")
+            selected_car = data[:last_underscore].replace("_", " ").strip()
+            user_id = int(data[last_underscore + 1:])
+
+            if query.from_user.id != user_id:
+                requester = await context.bot.get_chat(user_id)
+                await query.answer(
+                    f"❌ هذا الاستعلام خاص بـ {requester.first_name} {requester.last_name} - استخدم الأمر /go",
+                    show_alert=True
+                )
+                return
+
+            context.user_data.setdefault(user_id, {})
+            context.user_data[user_id]["selected_car"] = selected_car
+
+            await select_car_for_parts(update, context)
+        except Exception as e:
+            logging.error(f"🔴 Error in showparts callback: {e}")
+            await query.answer("❌ حدث خطأ أثناء معالجة التصنيف.", show_alert=True)
+        return
+
+    data = raw_data.split("_")
+
+    if raw_data.startswith("catpart_"):
         # تعامل خاص مع أزرار التصنيفات
         _, keyword, user_id_str = data
         user_id = int(user_id_str)
@@ -1462,7 +1496,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # باقي الأنواع الأخرى مثل parts_1543 أو suggestion_123
         action, user_id_str = data[0], data[1]
-        user_id = int(user_id_str)
+        try:
+            user_id = int(user_id_str)
+        except ValueError:
+            logging.error(f"🔴 فشل في تحليل user_id: {user_id_str}")
+            await query.answer("⚠️ خطأ في البيانات، يرجى المحاولة مجددًا.", show_alert=True)
+            return
 
     if query.from_user.id != user_id:
         requester = await context.bot.get_chat(user_id)
@@ -1516,14 +1555,13 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             register_message(user_id, msg.message_id, query.message.chat_id, context)
         except telegram.error.BadRequest as e:
              if "Message is not modified" not in str(e):
-                 raise  # فقط تجاهل الخطأ هذا، والباقي اظهره
+                 raise
 
         await log_event(update, "اختيار فئة السيارة لقطع الغيار")
         return
 
     elif action == "catpart":
-        # هذه الحالة مخصصة للتصنيفات ضمن قطع الغيار
-        keyword = data[1]  # تأكدنا منه في الأعلى
+        keyword = data[1]
         user_id = int(data[2])
         selected_car = context.user_data[user_id].get("selected_car")
 
@@ -1573,22 +1611,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await log_event(update, f"✅ استعلام تصنيفي: {keyword} ضمن {selected_car}")
         return
-  
-    elif query.data.startswith("showparts_"):
-        try:
-            data = query.data.replace("showparts_", "")
-            parts = data.split("_")
-            user_id = int(parts[-1])  # آخر جزء هو الـ ID
-            selected_car = "_".join(parts[:-1]).replace("_", " ")  # باقي الأجزاء اسم السيارة
-
-            context.user_data.setdefault(user_id, {})
-            context.user_data[user_id]["selected_car"] = selected_car
-
-            await select_car_for_parts(update, context)
-        except Exception as e:
-            logging.error(f"🔴 Error in showparts callback: {e}")
-            await query.answer("❌ حدث خطأ داخلي أثناء تحليل الفئة.", show_alert=True)
-        return
 
     elif action == "maintenance":
         context.user_data[user_id]["action"] = "maintenance"
@@ -1608,13 +1630,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         register_message(user_id, msg.message_id, query.message.chat_id, context)
         await log_event(update, "بدأ المستخدم إرسال اقتراح أو ملاحظة")
 
-        # ✅ بدء جلسة جديدة إن لم تكن موجودة
         if "active_suggestion_id" not in context.user_data[user_id]:
             suggestion_id = await start_suggestion_session(user_id, context)
         else:
             suggestion_id = context.user_data[user_id]["active_suggestion_id"]
 
-        # ✅ حفظ معلومات المجموعة داخل الجلسة الصحيحة
         suggestion_records[user_id][suggestion_id]["group_name"] = chat.title if chat.title else "خاص"
         suggestion_records[user_id][suggestion_id]["group_id"] = chat.id
         suggestion_records[user_id][suggestion_id]["user_name"] = update.effective_user.full_name

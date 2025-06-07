@@ -1555,7 +1555,19 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await log_event(update, f"✅ استعلام تصنيفي: {keyword} ضمن {selected_car}")
         return
-
+   
+    elif action == "showparts":
+        try:
+            parts = query.data.replace("showparts_", "").split("_")
+            user_id = int(parts[-1])
+            selected_car = "_".join(parts[:-1])
+            context.user_data.setdefault(user_id, {})
+            context.user_data[user_id]["selected_car"] = selected_car
+            await select_car_for_parts(update, context)
+        except Exception as e:
+            print("🔴 Error in showparts callback:", e)
+        return
+ 
     elif query.data.startswith("part_image_"):
         parts = query.data.rsplit("_", 2)  # لضمان أن idx و user_id هما آخر عنصرين
         if len(parts) == 3:

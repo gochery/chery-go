@@ -2199,7 +2199,7 @@ async def handle_control_panel(update: Update, context: ContextTypes.DEFAULT_TYP
         [InlineKeyboardButton("✅ إنهاء وضع الصيانة", callback_data="ctrl_maintenance_off")],
         [InlineKeyboardButton("🧨 تدمير البيانات", callback_data="self_destruct")],
         [InlineKeyboardButton("🔁 إعادة تشغيل الجلسة", callback_data="restart_session")],
-        [InlineKeyboardButton("📢 إشعار بتحديث البوت", callback_data="broadcast_update")]
+        [InlineKeyboardButton("📢 إشعار بتحديث البوت", callback_data="broadcast_update")],
         [InlineKeyboardButton("🚪 خروج", callback_data="exit_control")]
     ]
 
@@ -2220,24 +2220,26 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
         return
 
     if query.data == "control_back":
+        keyboard = [
+            [InlineKeyboardButton("👤 المشرفون", callback_data="admins_menu")],
+            [InlineKeyboardButton("📊 الإحصائيات", callback_data="show_stats")],
+            [InlineKeyboardButton("🧹 تنظيف الجلسات", callback_data="clear_sessions")],
+            [InlineKeyboardButton("♻️ إعادة تحميل الإعدادات", callback_data="reload_settings")],
+            [InlineKeyboardButton("🚧 تفعيل وضع الصيانة", callback_data="ctrl_maintenance_on")],
+            [InlineKeyboardButton("✅ إنهاء وضع الصيانة", callback_data="ctrl_maintenance_off")],
+            [InlineKeyboardButton("🧨 تدمير البيانات", callback_data="self_destruct")],
+            [InlineKeyboardButton("🔁 إعادة تشغيل الجلسة", callback_data="restart_session")],
+            [InlineKeyboardButton("📢 إشعار بتحديث البوت", callback_data="broadcast_update")],
+            [InlineKeyboardButton("🚪 خروج", callback_data="exit_control")]
+        ]
+
         await query.message.edit_text(
             "🛠️ *لوحة التحكم:*",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("👤 المشرفون", callback_data="admins_menu")],
-                [InlineKeyboardButton("📊 الإحصائيات", callback_data="show_stats")],
-                [InlineKeyboardButton("🧹 تنظيف الجلسات", callback_data="clear_sessions")],
-                [InlineKeyboardButton("♻️ إعادة تحميل الإعدادات", callback_data="reload_settings")],
-                [InlineKeyboardButton("🚧 تفعيل وضع الصيانة", callback_data="ctrl_maintenance_on")],
-                [InlineKeyboardButton("✅ إنهاء وضع الصيانة", callback_data="ctrl_maintenance_off")],
-                [InlineKeyboardButton("🧨 تدمير البيانات", callback_data="self_destruct")],
-                [InlineKeyboardButton("🔁 إعادة تشغيل الجلسة", callback_data="restart_session")],
-                [InlineKeyboardButton("📢 إشعار بتحديث البوت", callback_data="broadcast_update")]
-                [InlineKeyboardButton("🚪 خروج", callback_data="exit_control")]
-            ]),
+            reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode=constants.ParseMode.MARKDOWN
         )
         return
-
+  
     if query.data == "exit_control":
         await query.message.delete()
         return

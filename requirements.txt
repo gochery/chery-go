@@ -1,5 +1,5 @@
 requests
-python-telegram-bot[job-queue,webhooks]==20.7
+python-telegram-bot[job-queue]==20.7
 fastapi
 uvicorn
 pandas

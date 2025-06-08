@@ -622,7 +622,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             station = html.escape(str(row['Station Name'])) if pd.notna(row['Station Name']) else "غير معروف"
             part_no = html.escape(str(row['Part No'])) if pd.notna(row['Part No']) else "غير متوفر"
             results += (
-                f"🧩 المحطة: {station}\n"
+                f"🧩 القطعة: {station}\n"
                f"🔢 رقم القطعة: {part_no}\n\n"
         ) 
 
@@ -951,21 +951,41 @@ async def send_part_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if context.user_data.get(user_id, {}).get(f"image_opened_{index}"):
-        await query.answer(f"❌ عزيزي {query.from_user.full_name}، لا يمكنك فتح هذا الاستعلام مرتين بنفس الجلسة. الرجاء استخدام /go مره اخرى.", show_alert=True)
+        await query.answer(
+            f"❌ عزيزي {query.from_user.full_name}، لا يمكنك فتح هذا الاستعلام مرتين بنفس الجلسة. الرجاء استخدام /go مره اخرى.",
+            show_alert=True
+        )
         return
 
     context.user_data.setdefault(user_id, {})[f"image_opened_{index}"] = True
     row = df_parts.iloc[index]
 
     user_name = query.from_user.full_name
+    selected_car = context.user_data.get(user_id, {}).get("selected_car", "غير معروف")
+
     now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
     delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
-    header = f"`🧑‍💻 استعلام خاص بـ {user_name}`\n"
-    footer = f"\n`⏳ سيتم حذف هذا الاستعلام تلقائياً خلال 5 دقائق ({delete_time} / 🇸🇦)`"
 
-    caption = f"{header}*الاسم:* {row['Station Name']}\n*الرقم:* {row['Part No']}{footer}"
+    # التأكد من عدم وجود NaN وتحويل للقيم
+    station = html.escape(str(row['Station Name'])) if pd.notna(row['Station Name']) else "غير معروف"
+    part_no = html.escape(str(row['Part No'])) if pd.notna(row['Part No']) else "غير متوفر"
 
-    msg = await context.bot.send_photo(chat_id=query.message.chat_id, photo=row["Image"], caption=caption, parse_mode=constants.ParseMode.MARKDOWN)
+    # التنسيق الكامل
+    caption = (
+        f"🧑‍💻 استعلام خاص بـ: {user_name}\n"
+        f"🚗 الفئة: {selected_car}\n\n"
+        f"القطعة: {station}\n"
+        f"الرقم: {part_no}\n\n"
+        f"⏳ سيتم حذف هذا الاستعلام خلال 5 دقائق ({delete_time} 🇸🇦)"
+    )
+
+    msg = await context.bot.send_photo(
+        chat_id=query.message.chat_id,
+        photo=row["Image"],
+        caption=caption,
+        parse_mode=constants.ParseMode.HTML  # لا نستخدم تنسيق HTML داخل النص، لكنه مطلوب تقنيًا في send_photo
+    )
+
     register_message(user_id, msg.message_id, query.message.chat_id, context)
     
 async def car_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):

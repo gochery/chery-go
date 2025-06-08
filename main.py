@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import html
 import asyncio
 from fastapi import FastAPI, Request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, constants

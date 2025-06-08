@@ -3,7 +3,7 @@ import os
 from telegram import Update
 from telegram.ext import Application, MessageHandler, ContextTypes, filters
 
-TOKEN = os.environ["BOT_TOKEN"]
+TOKEN = os.environ["TELEGRAM_TOKEN"]
 
 logging.basicConfig(level=logging.INFO)
 

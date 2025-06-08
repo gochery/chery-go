@@ -1691,42 +1691,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         suggestion_records[user_id][suggestion_id]["user_name"] = update.effective_user.full_name
         return
 
-    elif action == "broadcastupdate":
-        image_path = "GO-now.jpg"
-        broadcast_text = (
-            "📢 <b>إعلان من GO</b>\n\n"
-            "تم تحديث قوائم البرنامج والبيانات لتصبح أسهل للاستفادة من الخدمات.\n\n"
-            "شكراً لثقتكم 🌟\n"
-            "برنامج GO لخدمات الصيانة لعملاء شيري برو و إكسيد"
-        )
-
-        sent_count = 0
-        failed_count = 0
-        group_ids = set()
-
-    # استخراج معرفات المجموعات من user_data
-        for uid, data in context.user_data.items():
-            group_id = data.get("group_id")
-            if group_id and int(group_id) < 0:
-                group_ids.add(int(group_id))
-
-        for gid in group_ids:
-            try:
-                with open(image_path, "rb") as photo:
-                    await context.bot.send_photo(
-                        chat_id=gid,
-                        photo=photo,
-                        caption=broadcast_text,
-                        parse_mode="HTML"
-                    )
-                sent_count += 1
-            except Exception as e:
-                logging.warning(f"❌ فشل إرسال الإشعار إلى المجموعة {gid}: {e}")
-                failed_count += 1
-
-        await query.answer(f"📬 أُرسل إلى {sent_count} مجموعة (فشل: {failed_count})", show_alert=True)
-
-### ✅ الدالة المعدلة: handle_suggestion
+ ### ✅ الدالة المعدلة: handle_suggestion
 async def handle_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
@@ -2234,7 +2199,7 @@ async def handle_control_panel(update: Update, context: ContextTypes.DEFAULT_TYP
         [InlineKeyboardButton("✅ إنهاء وضع الصيانة", callback_data="ctrl_maintenance_off")],
         [InlineKeyboardButton("🧨 تدمير البيانات", callback_data="self_destruct")],
         [InlineKeyboardButton("🔁 إعادة تشغيل الجلسة", callback_data="restart_session")],
-        InlineKeyboardButton("📢 إشعار بتحديث البوت", callback_data=f"broadcast_update_{user_id}")
+        [InlineKeyboardButton("📢 إشعار بتحديث البوت", callback_data="broadcast_update")]
         [InlineKeyboardButton("🚪 خروج", callback_data="exit_control")]
     ]
 
@@ -2266,6 +2231,7 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
                 [InlineKeyboardButton("✅ إنهاء وضع الصيانة", callback_data="ctrl_maintenance_off")],
                 [InlineKeyboardButton("🧨 تدمير البيانات", callback_data="self_destruct")],
                 [InlineKeyboardButton("🔁 إعادة تشغيل الجلسة", callback_data="restart_session")],
+                [InlineKeyboardButton("📢 إشعار بتحديث البوت", callback_data="broadcast_update")]
                 [InlineKeyboardButton("🚪 خروج", callback_data="exit_control")]
             ]),
             parse_mode=constants.ParseMode.MARKDOWN
@@ -2398,6 +2364,41 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
         await query.answer("🔁 تم إعادة تشغيل الجلسة بنجاح.", show_alert=True)
         await query.message.edit_text("♻️ تم تفريغ جميع بيانات الجلسة.",
                                       reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]]))
+        return
+
+    if query.data == "broadcast_update":
+        image_path = "GO-now.jpg"
+        broadcast_text = (
+            "📢 <b>إعلان من GO</b>\n\n"
+            "تم تحديث قوائم البرنامج والبيانات لتصبح أسهل للاستفادة من الخدمات.\n\n"
+            "شكراً لثقتكم 🌟\n"
+            "برنامج GO لخدمات الصيانة لعملاء شيري برو و إكسيد"
+        )
+
+        sent_count = 0
+        failed_count = 0
+        group_ids = set()
+
+        for uid, data in context.user_data.items():
+            group_id = data.get("group_id")
+            if group_id and int(group_id) < 0:
+                group_ids.add(int(group_id))
+
+        for gid in group_ids:
+            try:
+                with open(image_path, "rb") as photo:
+                    await context.bot.send_photo(
+                        chat_id=gid,
+                        photo=photo,
+                        caption=broadcast_text,
+                        parse_mode="HTML"
+                    )
+                sent_count += 1
+            except Exception as e:
+                logging.warning(f"❌ فشل إرسال الإشعار إلى المجموعة {gid}: {e}")
+                failed_count += 1
+
+        await query.answer(f"📬 أُرسل إلى {sent_count} مجموعة (فشل: {failed_count})", show_alert=True)
         return
 
 async def handle_add_admin_id(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -1692,6 +1692,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     elif action == "broadcastupdate":
+        image_path = "GO-now.jpg"
         broadcast_text = (
             "📢 <b>إعلان من GO</b>\n\n"
             "تم تحديث قوائم البرنامج والبيانات لتصبح أسهل للاستفادة من الخدمات.\n\n"
@@ -1703,7 +1704,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         failed_count = 0
         group_ids = set()
 
-    # استخراج كل group_id معروف من المستخدمين
+    # استخراج معرفات المجموعات من user_data
         for uid, data in context.user_data.items():
             group_id = data.get("group_id")
             if group_id and int(group_id) < 0:
@@ -1711,17 +1712,19 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         for gid in group_ids:
             try:
-                await context.bot.send_message(
-                    chat_id=gid,
-                    text=broadcast_text,
-                    parse_mode="HTML"
-                )
+                with open(image_path, "rb") as photo:
+                    await context.bot.send_photo(
+                        chat_id=gid,
+                        photo=photo,
+                        caption=broadcast_text,
+                        parse_mode="HTML"
+                    )
                 sent_count += 1
             except Exception as e:
                 logging.warning(f"❌ فشل إرسال الإشعار إلى المجموعة {gid}: {e}")
                 failed_count += 1
 
-        await query.answer(f"📬 تم إرسال الإشعار إلى {sent_count} مجموعة.", show_alert=True)
+        await query.answer(f"📬 أُرسل إلى {sent_count} مجموعة (فشل: {failed_count})", show_alert=True)
 
 ### ✅ الدالة المعدلة: handle_suggestion
 async def handle_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):

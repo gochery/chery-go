@@ -2,30 +2,26 @@ import logging
 import os
 from telegram import Update
 from telegram.ext import Application, MessageHandler, ContextTypes, filters
+from telegram.helpers import escape_markdown
 
-# قراءة التوكن من متغير البيئة
 TOKEN = os.environ["TELEGRAM_TOKEN"]
 
-# تفعيل تسجيل المعلومات
 logging.basicConfig(level=logging.INFO)
 
-# دالة لمعالجة ملفات PDF المستلمة
 async def handle_pdf(update: Update, context: ContextTypes.DEFAULT_TYPE):
     document = update.message.document
     if document and document.mime_type == "application/pdf":
+        file_id_escaped = escape_markdown(document.file_id, version=2)
         await update.message.reply_text(
-            f"📄 file_id:\n`{document.file_id}`",
-            parse_mode="Markdown"
+            f"📄 file_id:\n`{file_id_escaped}`",
+            parse_mode="MarkdownV2"
         )
 
-# إنشاء التطبيق وتسجيل المعالج
 app = Application.builder().token(TOKEN).build()
 app.add_handler(MessageHandler(filters.Document.PDF, handle_pdf))
 
-# إعداد Webhook لـ Render
 PORT = int(os.environ.get("PORT", 8443))
-RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
-WEBHOOK_URL = f"https://{RENDER_HOSTNAME}/"  # بدون /webhook لأنك لم تضف webhook_path
+WEBHOOK_URL = f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/webhook"
 
 if __name__ == "__main__":
     app.run_webhook(

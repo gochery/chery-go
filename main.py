@@ -626,31 +626,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ) 
 
 # 🔻 التذييل بصندوق
-       footer = (
-           f"<code>📸 الصور متاحة عبر التصنيفات\n"
-           f"⏳ الحذف التلقائي خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
-       )
+        footer = (
+            f"<code>📸 الصور متاحة عبر التصنيفات\n"
+            f"⏳ الحذف التلقائي خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
+        )
 
 # 🔻 دمج الرسالة النهائية
-       response = header + results + footer
+        response = header + results + footer
 
 # زر عرض القطع المصنفة
-       safe_car_name = selected_car.replace(" ", "_")
-       callback_data = f"showparts_{safe_car_name}_{user_id}"
-       keyboard = [[InlineKeyboardButton("🗂 عرض القطع المصنفة", callback_data=callback_data)]]
-       reply_markup = InlineKeyboardMarkup(keyboard)
+        safe_car_name = selected_car.replace(" ", "_")
+        callback_data = f"showparts_{safe_car_name}_{user_id}"
+        keyboard = [[InlineKeyboardButton("🗂 عرض القطع المصنفة", callback_data=callback_data)]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
 # إرسال الرسالة
-       msg = await message.reply_text(
-           response,
-           parse_mode="HTML",
-           disable_web_page_preview=True,
-           reply_markup=reply_markup
-       )
+        msg = await message.reply_text(
+            response,
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+            reply_markup=reply_markup
+        )
 
 # تسجيل الرسالة
-       register_message(user_id, msg.message_id, chat.id, context)
-       return
+        register_message(user_id, msg.message_id, chat.id, context)
+        return
 
 async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

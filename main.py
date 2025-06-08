@@ -619,8 +619,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # 🔻 جسم النتائج بدون صندوق
         for idx, row in matches.iterrows():
-            station = html.escape(row['Station Name'])
-            part_no = html.escape(row['Part No'])
+            station = html.escape(str(row['Station Name'])) if pd.notna(row['Station Name']) else "غير معروف"
+            part_no = html.escape(str(row['Part No'])) if pd.notna(row['Part No']) else "غير متوفر"
             results += (
                 f"🧩 المحطة: {station}\n"
                f"🔢 رقم القطعة: {part_no}\n\n"

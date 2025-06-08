@@ -1,6 +1,7 @@
 import logging
 from telegram import Update
 from telegram.ext import Application, MessageHandler, ContextTypes, filters
+from telegram.helpers import escape_markdown
 
 TOKEN = "7560777141:AAGTOemLV2nO5U7wt9bqhnfDdj43NHdzV4c"
 
@@ -9,9 +10,10 @@ logging.basicConfig(level=logging.INFO)
 async def handle_pdf(update: Update, context: ContextTypes.DEFAULT_TYPE):
     document = update.message.document
     if document and document.mime_type == "application/pdf":
+        file_id_escaped = escape_markdown(document.file_id, version=2)
         await update.message.reply_text(
-            f"📄 file_id:\n`{document.file_id}`",
-            parse_mode="Markdown"
+            f"📄 file_id:\n`{file_id_escaped}`",
+            parse_mode="MarkdownV2"
         )
 
 app = Application.builder().token(TOKEN).build()

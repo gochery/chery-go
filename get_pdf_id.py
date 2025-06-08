@@ -3,10 +3,13 @@ import os
 from telegram import Update
 from telegram.ext import Application, MessageHandler, ContextTypes, filters
 
+# قراءة التوكن من متغير البيئة
 TOKEN = os.environ["TELEGRAM_TOKEN"]
 
+# تفعيل تسجيل المعلومات
 logging.basicConfig(level=logging.INFO)
 
+# دالة لمعالجة ملفات PDF المستلمة
 async def handle_pdf(update: Update, context: ContextTypes.DEFAULT_TYPE):
     document = update.message.document
     if document and document.mime_type == "application/pdf":
@@ -15,12 +18,14 @@ async def handle_pdf(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
+# إنشاء التطبيق وتسجيل المعالج
 app = Application.builder().token(TOKEN).build()
 app.add_handler(MessageHandler(filters.Document.PDF, handle_pdf))
 
-# إعداد Webhook لـ Render فقط
+# إعداد Webhook لـ Render
 PORT = int(os.environ.get("PORT", 8443))
-WEBHOOK_URL = f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/webhook"
+RENDER_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+WEBHOOK_URL = f"https://{RENDER_HOSTNAME}/"  # بدون /webhook لأنك لم تضف webhook_path
 
 if __name__ == "__main__":
     app.run_webhook(

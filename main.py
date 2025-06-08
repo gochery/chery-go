@@ -966,24 +966,22 @@ async def send_part_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
     delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
 
-    # التأكد من عدم وجود NaN وتحويل للقيم
     station = html.escape(str(row['Station Name'])) if pd.notna(row['Station Name']) else "غير معروف"
     part_no = html.escape(str(row['Part No'])) if pd.notna(row['Part No']) else "غير متوفر"
 
-    # التنسيق الكامل
     caption = (
-        f"🧑‍💻 استعلام خاص بـ: {user_name}\n"
-        f"🚗 الفئة: {selected_car}\n\n"
+        f"`🧑‍💻 استعلام خاص بـ: {user_name}`\n"
+        f"`🚗 الفئة: {selected_car}`\n\n"
         f"القطعة: {station}\n"
-        f"الرقم: {part_no}\n\n"
-        f"⏳ سيتم حذف هذا الاستعلام خلال 5 دقائق ({delete_time} 🇸🇦)"
+        f"رقم القطعة: {part_no}\n\n"
+        f"`⏳ سيتم حذف هذا الاستعلام خلال 5 دقائق ({delete_time} 🇸🇦)`"
     )
 
     msg = await context.bot.send_photo(
         chat_id=query.message.chat_id,
         photo=row["Image"],
         caption=caption,
-        parse_mode=constants.ParseMode.HTML  # لا نستخدم تنسيق HTML داخل النص، لكنه مطلوب تقنيًا في send_photo
+        parse_mode=constants.ParseMode.MARKDOWN
     )
 
     register_message(user_id, msg.message_id, query.message.chat_id, context)
@@ -1626,7 +1624,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             .astype(str)
             .str.strip()
             .str.contains(f"^{keyword}|\\s{keyword}", case=False, na=False)
-       ]
+        ]
 
         if matches.empty:
             await query.answer("❌ لا توجد نتائج ضمن هذا التصنيف.", show_alert=True)
@@ -1634,7 +1632,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
-        footer = f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
+        footer = f"\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)</code>"
 
         user_name = query.from_user.full_name
 
@@ -1643,11 +1641,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             part_number_value = row.get("Part No", "غير معروف")
 
             text = (
-                f"<code>🧑‍💼 استعلام خاص بـ {user_name}</code>\n\n"
-                f"🚗 <b>الفئة:</b> {selected_car}\n"
+                f"<code>🧑‍💼 استعلام خاص بـ {user_name}</code>\n"
+                f"<code>🚗 الفئة: {selected_car}</code>\n\n"
                 f"🔹 <b>اسم القطعة:</b> {part_name_value}\n"
                 f"🔹 <b>رقم القطعة:</b> {part_number_value}\n\n"
-                f"📌 تم العثور على نتائج بناءً على التصنيف"
+                f"<code>📌 تم العثور على نتائج بناءً على التصنيف</code>"
                 + footer
             )
 
@@ -1656,7 +1654,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 keyboard.append([InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")])
 
             msg = await query.message.reply_text(
-                text, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None, parse_mode=ParseMode.HTML
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
+                parse_mode=ParseMode.HTML
             )
             register_message(user_id, msg.message_id, query.message.chat_id, context)
 

@@ -2249,6 +2249,19 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
         await query.message.delete()
         return
 
+    if query.data == "ctrl_maintenance_on":
+        context.bot_data["maintenance_mode"] = True
+
+        image_path = "GO-now.jpg"
+        await query.message.reply_photo(
+            photo=open(image_path, "rb"),
+            caption="⚙️ <b>البوت الآن في وضع الصيانة والتحديث.</b>\n\nيرجى المحاولة لاحقًا.",
+            parse_mode=constants.ParseMode.HTML
+        )
+
+        await query.answer("🔧 تم تفعيل وضع الصيانة.")
+        return
+
     if query.data == "self_destruct":
         if user_id != 1543083749:
             await query.answer("🚫 أنت لا تملك الصلاحية لتنفيذ هذا الإجراء.", show_alert=True)

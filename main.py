@@ -3,6 +3,7 @@ import pandas as pd
 import html
 import asyncio
 from fastapi import FastAPI, Request
+from telegram import CallbackQuery
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, constants
 from telegram import Chat
 from telegram.constants import ParseMode
@@ -2369,14 +2370,18 @@ async def handle_broadcast_or_maintenance(query: CallbackQuery, context: Context
         await query.answer("🚫 لا تملك صلاحية الوصول.", show_alert=True)
         return
 
-    # نص مشترك
+    # ⏰ توليد توقيت التحديث بصيغة سعودية
+    now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
+    formatted_time = now_saudi.strftime("%Y-%m-%d %I:%M %p")  # مثال: 2025-06-09 03:25 PM
+
+    # 📝 نص إشعار التحديث
     message_text = (
         "📢 <b>إعلان هام من برنامج GO</b>\n\n"
         "🚀 تم تحديث البرنامج بالكامل!\n"
         "🛠️ قوائم أسرع • نتائج أدق • واجهة أسهل\n\n"
         "✨ استمتع الآن بتجربة أكثر سلاسة في:\n"
         "🔧 صيانة شيري • 🧩 قطع الغيار • 📘 دليل المالك • 🗺️ مواقع الخدمة\n\n"
-        "📲 جرّب التحديث الآن واكتشف الفرق بنفسك!\n\n"
+        f"🕓 <b>وقت التحديث:</b> {formatted_time} 🇸🇦\n\n"
         "🌟 شكراً لثقتكم المستمرة\n"
         "فريق برنامج <b>GO</b> لخدمات شيري برو و إكسيد"
     )
@@ -2399,7 +2404,7 @@ async def handle_broadcast_or_maintenance(query: CallbackQuery, context: Context
         await query.message.edit_text("✅ تم إنهاء وضع الصيانة. البوت الآن يعمل بشكل طبيعي.")
         return
 
-    # 📢 إرسال إشعار التحديث للمجموعات
+    # 📢 إرسال إشعار التحديث إلى جميع المجموعات
     if action == "broadcast_update":
         sent_count = 0
         failed_count = 0

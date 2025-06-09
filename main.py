@@ -2447,6 +2447,10 @@ async def handle_add_admin_id(update: Update, context: ContextTypes.DEFAULT_TYPE
     # 🧼 مسح الحالة
     context.user_data[user_id]["action"] = None
 
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("go", start))
+application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"(?i)^go$"), handle_go_text))
+application.add_handler(CommandHandler("go25s", handle_control_panel))
 # ✅ أوامر لوحة التحكم العامة + إشعار التحديث + وضع الصيانة
 application.add_handler(CallbackQueryHandler(
     handle_control_buttons,

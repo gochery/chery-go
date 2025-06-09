@@ -277,7 +277,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user_block = f"`🧑‍💼 مرحباً {user_name}`"
         program_description = (
-            "🤖 *نظام الاستعلامات الذكي لعملاء شيري برو*\n"
+            "🤖 *نظام الاستعلامات الذكي لعملاء شيري برو واكسيد*\n"
             "🔧 صيانة دورية • قطع غيار • دليل المالك • مراكز خدمة ومتاجر\n"
             "🛠️ والمزيد من الخدمات المتكاملة بين يديك."
         )
@@ -2227,32 +2227,47 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
         await query.answer("🚫 لا تملك صلاحية الوصول.", show_alert=True)
         return
 
+    # ✅ تفعيل وضع الصيانة
+    if action == "ctrl_maintenance_on":
+        context.bot_data["maintenance_mode"] = True
+        await query.message.reply_text(
+            "⚠️ تم تفعيل وضع الصيانة.\nلن يستطيع المستخدمون استخدام الخدمات مؤقتًا.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]])
+        )
+        return
+
+    # ✅ إنهاء وضع الصيانة
+    if action == "ctrl_maintenance_off":
+        context.bot_data["maintenance_mode"] = False
+        await query.message.reply_text(
+            "✅ تم إنهاء وضع الصيانة.\nيمكن للمستخدمين استخدام الخدمات الآن.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]])
+        )
+        return
+
+    # ✅ إرسال إشعار بتحديث البوت
     if action == "broadcast_update":
         await query.answer("📢 جاري إرسال التحديث...", show_alert=False)
-
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         formatted_time = now_saudi.strftime("%Y-%m-%d %I:%M %p")
-
         message_text = (
             "📢 <b>إعلان هام من برنامج GO</b>\n\n"
             "🚀 تم تحديث البرنامج بالكامل!\n"
             "🛠️ قوائم أسرع • نتائج أدق • واجهة أسهل\n\n"
             "✨ استمتع الآن بتجربة أكثر سلاسة في:\n"
-            "🔧 صيانة شيري • 🧩 قطع الغيار • 📘 دليل المالك • 🗺️ مواقع الخدمة\n\n"
-            f"🕓 <b>وقت التحديث:</b> {formatted_time} 🇸🇦\n\n"
+            "🔧 صيانات دورية • 🧩 قطع الغيار • 📘 دليل المالك • 🗺️ متاجر ومواقع الخدمة\n\n"
+            f"<code>🕓 وقت التحديث: {formatted_time} 🇸🇦</code>\n\n"
             "🌟 شكراً لثقتكم المستمرة\n"
             "فريق برنامج <b>GO</b> لخدمات شيري برو و إكسيد"
         )
 
-        # ✅ جلب كل معرفات المجموعات التي تفاعل منها المستخدمون من user_sessions
         sent_count = 0
         failed_count = 0
         group_ids = set()
-
         for sessions in user_sessions.values():
             for session in sessions:
                 group_id = session["chat_id"]
-                if group_id < 0:  # فقط المجموعات
+                if group_id < 0:
                     group_ids.add(group_id)
 
         for group_id in group_ids:
@@ -2275,24 +2290,25 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
         )
         return
 
-    if query.data == "control_back":
-     await query.message.edit_text(
-         "🛠️ *لوحة التحكم:*",
-         reply_markup=InlineKeyboardMarkup([
-             [InlineKeyboardButton("👤 المشرفون", callback_data="admins_menu")],
-             [InlineKeyboardButton("📊 الإحصائيات", callback_data="show_stats")],
-             [InlineKeyboardButton("🧹 تنظيف الجلسات", callback_data="clear_sessions")],
-             [InlineKeyboardButton("♻️ إعادة تحميل الإعدادات", callback_data="reload_settings")],
-             [InlineKeyboardButton("🚧 تفعيل وضع الصيانة", callback_data="ctrl_maintenance_on")],
-             [InlineKeyboardButton("✅ إنهاء وضع الصيانة", callback_data="ctrl_maintenance_off")],
-             [InlineKeyboardButton("📢 إشعار بتحديث البوت", callback_data="broadcast_update")],
-             [InlineKeyboardButton("🧨 تدمير البيانات", callback_data="self_destruct")],
-             [InlineKeyboardButton("🔁 إعادة تشغيل الجلسة", callback_data="restart_session")],
-             [InlineKeyboardButton("🚪 خروج", callback_data="exit_control")]
-         ]),
-         parse_mode=constants.ParseMode.MARKDOWN
-     )
-     return
+    # باقي الإجراءات كما هي
+    if action == "control_back":
+        await query.message.edit_text(
+            "🛠️ *لوحة التحكم:*",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("👤 المشرفون", callback_data="admins_menu")],
+                [InlineKeyboardButton("📊 الإحصائيات", callback_data="show_stats")],
+                [InlineKeyboardButton("🧹 تنظيف الجلسات", callback_data="clear_sessions")],
+                [InlineKeyboardButton("♻️ إعادة تحميل الإعدادات", callback_data="reload_settings")],
+                [InlineKeyboardButton("🚧 تفعيل وضع الصيانة", callback_data="ctrl_maintenance_on")],
+                [InlineKeyboardButton("✅ إنهاء وضع الصيانة", callback_data="ctrl_maintenance_off")],
+                [InlineKeyboardButton("📢 إشعار بتحديث البوت", callback_data="broadcast_update")],
+                [InlineKeyboardButton("🧨 تدمير البيانات", callback_data="self_destruct")],
+                [InlineKeyboardButton("🔁 إعادة تشغيل الجلسة", callback_data="restart_session")],
+                [InlineKeyboardButton("🚪 خروج", callback_data="exit_control")]
+            ]),
+            parse_mode=constants.ParseMode.MARKDOWN
+        )
+        return
 
     if query.data == "exit_control":
         await query.message.delete()

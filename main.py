@@ -1,14 +1,15 @@
 import os
-import pandas as pd
 import html
 import asyncio
+import logging
+import pandas as pd
+from uuid import uuid4
+from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, Request
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, constants
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
-from telegram import CallbackQuery
-from telegram import Chat
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, constants, Chat
 from telegram.constants import ParseMode
 from telegram.ext import (
+    ApplicationBuilder,
     Application,
     CommandHandler,
     CallbackQueryHandler,
@@ -16,10 +17,6 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
-import logging
-from datetime import datetime, timezone, timedelta
-from uuid import uuid4
-
 # ✅ تخزين كل اقتراحات المستخدمين
 suggestion_records = {}
 

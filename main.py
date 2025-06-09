@@ -7,6 +7,7 @@ from uuid import uuid4
 from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, Request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, constants, Chat
+from telegram import CallbackQuery
 from telegram.constants import ParseMode
 from telegram.ext import (
     ApplicationBuilder,

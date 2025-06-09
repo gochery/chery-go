@@ -2491,6 +2491,7 @@ application.add_handler(CallbackQueryHandler(button, pattern=r"^catpart_.*_\d+$"
 application.add_handler(CallbackQueryHandler(button, pattern=r"^showparts_.*_\d+$"))
 application.add_handler(CallbackQueryHandler(button, pattern=r"^(parts|maintenance|consumable|external|suggestion)_\d+$"))
 application.add_handler(CallbackQueryHandler(select_car_for_parts, pattern=r"^carpart_"))
+application.add_handler(CallbackQueryHandler(send_brochure, pattern=r"^brochure_\d+_\d+$"))
 
 # ✅ دليل المالك
 application.add_handler(CallbackQueryHandler(show_manual_car_list, pattern=r"^manual_"))

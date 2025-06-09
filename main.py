@@ -2254,11 +2254,18 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
             "فريق برنامج <b>GO</b> لخدمات شيري برو و إكسيد"
         )
 
+    # 🔎 استخراج جميع معرفات المجموعات من user_data
+        unique_groups = set()
+        for data in context.user_data.values():
+            group_id = data.get("final_group_id")
+            if group_id and int(group_id) < 0:  # تأكد أنه مجموعة
+                unique_groups.add(group_id)
+
         sent_count = 0
         failed_count = 0
-        for group_id in context.bot_data.get("group_ids", []):
+        for group_id in unique_groups:
             try:
-                with open(image_path, "rb") as photo:
+                with open("GO-now.jpg", "rb") as photo:
                     await context.bot.send_photo(
                         chat_id=group_id,
                         photo=photo,

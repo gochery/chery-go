@@ -2474,6 +2474,8 @@ application.add_handler(CallbackQueryHandler(
     handle_control_buttons,
     pattern="^(ctrl_maintenance_on|ctrl_maintenance_off|reload_settings|add_admin|list_admins|clear_sessions|show_stats|self_destruct|exit_control|control_back|admins_menu|restart_session|delete_admin|broadcast_update)$"
 ))
+# ✅ استقبال رسائل المستخدمين والمشرفين (اقتراحات وردود مخصصة)
+application.add_handler(MessageHandler(filters.ALL, handle_message))
 
 # ✅ نظام الاقتراحات (إرسال + ردود سريعة + رد مخصص)
 application.add_handler(CallbackQueryHandler(send_suggestion, pattern=r"^send_suggestion$"))

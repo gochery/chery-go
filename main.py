@@ -2415,6 +2415,7 @@ async def handle_broadcast_or_maintenance(query: CallbackQuery, context: Context
 
         await query.answer(f"📬 تم إرسال التحديث إلى {sent_count} مجموعة (فشل: {failed_count})", show_alert=True)
         return
+        
 async def handle_add_admin_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     message = update.message
@@ -2497,7 +2498,7 @@ application.add_handler(CallbackQueryHandler(handle_suggestion_reply, pattern=r"
 application.add_handler(CallbackQueryHandler(handle_send_reply, pattern=r"^sendreply_[a-zA-Z0-9]+_\d+_.+$"))
 application.add_handler(CallbackQueryHandler(handle_custom_reply, pattern=r"^customreply_\d+_.+$"))
 application.add_handler(CallbackQueryHandler(submit_admin_reply, pattern=r"^submit_admin_reply$"))
-app.add_handler(CallbackQueryHandler(handle_broadcast_or_maintenance, pattern="^(ctrl_maintenance_on|ctrl_maintenance_off|broadcast_update)$"))
+application.add_handler(CallbackQueryHandler(handle_broadcast_or_maintenance, pattern="^(ctrl_maintenance_on|ctrl_maintenance_off|broadcast_update)$"))
 
 # 🟢 زر "إلغاء" لأي إجراء
 application.add_handler(CallbackQueryHandler(handle_cancel, pattern=r"^cancel_"))

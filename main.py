@@ -2219,11 +2219,58 @@ async def handle_control_panel(update: Update, context: ContextTypes.DEFAULT_TYP
 # ✅ معالجة الضغط على أزرار الصيانة
 async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    action = query.data
     user_id = query.from_user.id
-    global df_admins
+    image_path = "GO-now.jpg"
 
     if user_id not in AUTHORIZED_USERS:
-        await query.answer("🚫 لا تملك صلاحية التحكم.", show_alert=True)
+        await query.answer("🚫 لا تملك صلاحية الوصول.", show_alert=True)
+        return
+
+    if action == "ctrl_maintenance_on":
+        context.bot_data["maintenance_mode"] = True
+        await query.answer("🔧 تم تفعيل وضع الصيانة.", show_alert=True)
+        await query.message.reply_text("🚧 تم تفعيل وضع الصيانة. البوت الآن غير متاح للمستخدمين.")
+        return
+
+    if action == "ctrl_maintenance_off":
+        context.bot_data["maintenance_mode"] = False
+        await query.answer("✅ تم إنهاء وضع الصيانة.", show_alert=True)
+        await query.message.reply_text("✅ تم إنهاء وضع الصيانة. البوت الآن يعمل بشكل طبيعي.")
+        return
+
+    if action == "broadcast_update":
+        now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
+        formatted_time = now_saudi.strftime("%Y-%m-%d %I:%M %p")
+
+        message_text = (
+            "📢 <b>إعلان هام من برنامج GO</b>\n\n"
+            "🚀 تم تحديث البرنامج بالكامل!\n"
+            "🛠️ قوائم أسرع • نتائج أدق • واجهة أسهل\n\n"
+            "✨ استمتع الآن بتجربة أكثر سلاسة في:\n"
+            "🔧 صيانة شيري • 🧩 قطع الغيار • 📘 دليل المالك • 🗺️ مواقع الخدمة\n\n"
+            f"🕓 <b>وقت التحديث:</b> {formatted_time} 🇸🇦\n\n"
+            "🌟 شكراً لثقتكم المستمرة\n"
+            "فريق برنامج <b>GO</b> لخدمات شيري برو و إكسيد"
+        )
+
+        sent_count = 0
+        failed_count = 0
+        for group_id in context.bot_data.get("group_ids", []):
+            try:
+                with open(image_path, "rb") as photo:
+                    await context.bot.send_photo(
+                        chat_id=group_id,
+                        photo=photo,
+                        caption=message_text,
+                        parse_mode=constants.ParseMode.HTML
+                    )
+                sent_count += 1
+            except Exception as e:
+                logging.warning(f"❌ فشل إرسال التحديث إلى {group_id}: {e}")
+                failed_count += 1
+
+        await query.answer(f"📬 تم إرسال التحديث إلى {sent_count} مجموعة (فشل: {failed_count})", show_alert=True)
         return
 
     if query.data == "control_back":
@@ -2361,61 +2408,6 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
                                       reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]]))
         return
 
-async def handle_broadcast_or_maintenance(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE):
-    action = query.data
-    user_id = query.from_user.id
-    image_path = "GO-now.jpg"
-
-    if user_id not in AUTHORIZED_USERS:
-        await query.answer("🚫 لا تملك صلاحية الوصول.", show_alert=True)
-        return
-
-    now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-    formatted_time = now_saudi.strftime("%Y-%m-%d %I:%M %p")
-
-    message_text = (
-        "📢 <b>إعلان هام من برنامج GO</b>\n\n"
-        "🚀 تم تحديث البرنامج بالكامل!\n"
-        "🛠️ قوائم أسرع • نتائج أدق • واجهة أسهل\n\n"
-        "✨ استمتع الآن بتجربة أكثر سلاسة في:\n"
-        "🔧 صيانة شيري • 🧩 قطع الغيار • 📘 دليل المالك • 🗺️ مواقع الخدمة\n\n"
-        f"🕓 <b>وقت التحديث:</b> {formatted_time} 🇸🇦\n\n"
-        "🌟 شكراً لثقتكم المستمرة\n"
-        "فريق برنامج <b>GO</b> لخدمات شيري برو و إكسيد"
-    )
-
-    if action == "ctrl_maintenance_on":
-        context.bot_data["maintenance_mode"] = True
-        await query.answer("🔧 تم تفعيل وضع الصيانة.", show_alert=True)
-        await query.message.reply_text("🚧 تم تفعيل وضع الصيانة. البوت الآن غير متاح للمستخدمين.")
-        return
-
-    if action == "ctrl_maintenance_off":
-        context.bot_data["maintenance_mode"] = False
-        await query.answer("✅ تم إنهاء وضع الصيانة.", show_alert=True)
-        await query.message.reply_text("✅ تم إنهاء وضع الصيانة. البوت الآن يعمل بشكل طبيعي.")
-        return
-
-    if action == "broadcast_update":
-        sent_count = 0
-        failed_count = 0
-        for group_id in context.bot_data.get("group_ids", []):
-            try:
-                with open(image_path, "rb") as photo:
-                    await context.bot.send_photo(
-                        chat_id=group_id,
-                        photo=photo,
-                        caption=message_text,
-                        parse_mode=constants.ParseMode.HTML
-                    )
-                sent_count += 1
-            except Exception as e:
-                logging.warning(f"❌ فشل إرسال التحديث إلى {group_id}: {e}")
-                failed_count += 1
-
-        await query.answer(f"📬 تم إرسال التحديث إلى {sent_count} مجموعة (فشل: {failed_count})", show_alert=True)
-        return
-        
 async def handle_add_admin_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     message = update.message
@@ -2498,8 +2490,6 @@ application.add_handler(CallbackQueryHandler(handle_suggestion_reply, pattern=r"
 application.add_handler(CallbackQueryHandler(handle_send_reply, pattern=r"^sendreply_[a-zA-Z0-9]+_\d+_.+$"))
 application.add_handler(CallbackQueryHandler(handle_custom_reply, pattern=r"^customreply_\d+_.+$"))
 application.add_handler(CallbackQueryHandler(submit_admin_reply, pattern=r"^submit_admin_reply$"))
-application.add_handler(CallbackQueryHandler(handle_broadcast_or_maintenance, pattern="^(ctrl_maintenance_on|ctrl_maintenance_off|broadcast_update)$"))
-
 # 🟢 زر "إلغاء" لأي إجراء
 application.add_handler(CallbackQueryHandler(handle_cancel, pattern=r"^cancel_"))
 

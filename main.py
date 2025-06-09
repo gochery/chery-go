@@ -277,7 +277,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user_block = f"`🧑‍💼 مرحباً {user_name}`"
         program_description = (
-            "🤖 *نظام الاستعلامات الذكي لعملاء شيري برو واكسيد*\n"
+            "🤖 *نظام الاستعلامات الذكي لعملاء شيري برو وإكسيد*\n"
             "🔧 صيانة دورية • قطع غيار • دليل المالك • مراكز خدمة ومتاجر\n"
             "🛠️ والمزيد من الخدمات المتكاملة بين يديك."
         )
@@ -2230,8 +2230,10 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
     # ✅ تفعيل وضع الصيانة
     if action == "ctrl_maintenance_on":
         context.bot_data["maintenance_mode"] = True
-        await query.message.reply_text(
-            "⚠️ تم تفعيل وضع الصيانة.\nلن يستطيع المستخدمون استخدام الخدمات مؤقتًا.",
+        await query.answer("🚧 تم تفعيل وضع الصيانة", show_alert=True)
+        await context.bot.send_message(
+            chat_id=user_id,
+            text="⚠️ تم تفعيل وضع الصيانة.\nلن يستطيع المستخدمون استخدام الخدمات مؤقتًا.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]])
         )
         return
@@ -2239,8 +2241,10 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
     # ✅ إنهاء وضع الصيانة
     if action == "ctrl_maintenance_off":
         context.bot_data["maintenance_mode"] = False
-        await query.message.reply_text(
-            "✅ تم إنهاء وضع الصيانة.\nيمكن للمستخدمين استخدام الخدمات الآن.",
+        await query.answer("✅ تم إنهاء وضع الصيانة", show_alert=True)
+        await context.bot.send_message(
+            chat_id=user_id,
+            text="✅ تم إنهاء وضع الصيانة.\nيمكن للمستخدمين استخدام الخدمات الآن.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]])
         )
         return

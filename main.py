@@ -2227,19 +2227,9 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
         await query.answer("🚫 لا تملك صلاحية الوصول.", show_alert=True)
         return
 
-    if action == "ctrl_maintenance_on":
-        context.bot_data["maintenance_mode"] = True
-        await query.answer("🔧 تم تفعيل وضع الصيانة.", show_alert=True)
-        await query.message.reply_text("🚧 تم تفعيل وضع الصيانة. البوت الآن غير متاح للمستخدمين.")
-        return
-
-    if action == "ctrl_maintenance_off":
-        context.bot_data["maintenance_mode"] = False
-        await query.answer("✅ تم إنهاء وضع الصيانة.", show_alert=True)
-        await query.message.reply_text("✅ تم إنهاء وضع الصيانة. البوت الآن يعمل بشكل طبيعي.")
-        return
-
     if action == "broadcast_update":
+        await query.answer("📢 جاري إرسال التحديث...", show_alert=False)
+
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         formatted_time = now_saudi.strftime("%Y-%m-%d %I:%M %p")
 
@@ -2254,18 +2244,20 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
             "فريق برنامج <b>GO</b> لخدمات شيري برو و إكسيد"
         )
 
-    # 🔎 استخراج جميع معرفات المجموعات من user_data
-        unique_groups = set()
-        for data in context.user_data.values():
-            group_id = data.get("final_group_id")
-            if group_id and int(group_id) < 0:  # تأكد أنه مجموعة
-                unique_groups.add(group_id)
-
+        # ✅ جلب كل معرفات المجموعات التي تفاعل منها المستخدمون من user_sessions
         sent_count = 0
         failed_count = 0
-        for group_id in unique_groups:
+        group_ids = set()
+
+        for sessions in user_sessions.values():
+            for session in sessions:
+                group_id = session["chat_id"]
+                if group_id < 0:  # فقط المجموعات
+                    group_ids.add(group_id)
+
+        for group_id in group_ids:
             try:
-                with open("GO-now.jpg", "rb") as photo:
+                with open(image_path, "rb") as photo:
                     await context.bot.send_photo(
                         chat_id=group_id,
                         photo=photo,
@@ -2274,10 +2266,13 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
                     )
                 sent_count += 1
             except Exception as e:
-                logging.warning(f"❌ فشل إرسال التحديث إلى {group_id}: {e}")
+                logging.warning(f"❌ فشل الإرسال إلى {group_id}: {e}")
                 failed_count += 1
 
-        await query.answer(f"📬 تم إرسال التحديث إلى {sent_count} مجموعة (فشل: {failed_count})", show_alert=True)
+        await query.message.reply_text(
+            f"📬 تم إرسال التحديث إلى {sent_count} مجموعة بنجاح ✅ (فشل: {failed_count})",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]])
+        )
         return
 
     if query.data == "control_back":
@@ -2452,33 +2447,35 @@ async def handle_add_admin_id(update: Update, context: ContextTypes.DEFAULT_TYPE
     # 🧼 مسح الحالة
     context.user_data[user_id]["action"] = None
 
-# 🟢 أوامر البداية (start/go)
-application.add_handler(CommandHandler("start", start))
-application.add_handler(CommandHandler("go", start))
-application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"(?i)^go$"), handle_go_text))
-application.add_handler(CommandHandler("go25s", handle_control_panel))
+# ✅ أوامر لوحة التحكم العامة + إشعار التحديث + وضع الصيانة
 application.add_handler(CallbackQueryHandler(
     handle_control_buttons,
-    pattern="^(ctrl_maintenance_on|ctrl_maintenance_off|reload_settings|add_admin|list_admins|clear_sessions|show_stats|self_destruct|exit_control|control_back|admins_menu|restart_session|delete_admin)$"
+    pattern="^(ctrl_maintenance_on|ctrl_maintenance_off|reload_settings|add_admin|list_admins|clear_sessions|show_stats|self_destruct|exit_control|control_back|admins_menu|restart_session|delete_admin|broadcast_update)$"
 ))
 
-# 🟢 استجابات المستخدم العامة (اقتراحات، صيانة، قطع غيار... إلخ)
-application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_message))
+# ✅ نظام الاقتراحات (إرسال + ردود سريعة + رد مخصص)
+application.add_handler(CallbackQueryHandler(send_suggestion, pattern=r"^send_suggestion$"))
+application.add_handler(CallbackQueryHandler(handle_suggestion_reply, pattern=r"^reply_\d+_.+$"))
+application.add_handler(CallbackQueryHandler(handle_send_reply, pattern=r"^sendreply_[a-zA-Z0-9]+_\d+_.+$"))
+application.add_handler(CallbackQueryHandler(handle_custom_reply, pattern=r"^customreply_\d+_.+$"))
+application.add_handler(CallbackQueryHandler(submit_admin_reply, pattern=r"^submit_admin_reply$"))
 
-# 🟢 خدمات الصيانة وقطع الغيار
+# ✅ الصيانة وقطع الغيار
 application.add_handler(CallbackQueryHandler(car_choice, pattern=r"^car_.*_\d+$"))
 application.add_handler(CallbackQueryHandler(km_choice, pattern=r"^km_.*_\d+$"))
 application.add_handler(CallbackQueryHandler(send_cost, pattern=r"^cost_\d+_\d+$"))
-application.add_handler(CallbackQueryHandler(send_brochure, pattern=r"^brochure_\d+_\d+$"))
 application.add_handler(CallbackQueryHandler(send_part_image, pattern=r"^part_image_\d+_\d+$"))
 application.add_handler(CallbackQueryHandler(button, pattern=r"^catpart_.*_\d+$"))
 application.add_handler(CallbackQueryHandler(button, pattern=r"^showparts_.*_\d+$"))
-
-# 🟢 القائمة الرئيسية: صيانة - قطع غيار - دليل - مراكز - اقتراح
 application.add_handler(CallbackQueryHandler(button, pattern=r"^(parts|maintenance|consumable|external|suggestion)_\d+$"))
-application.add_handler(CallbackQueryHandler(select_car_for_parts, pattern="^carpart_"))
+application.add_handler(CallbackQueryHandler(select_car_for_parts, pattern=r"^carpart_"))
 
-# 🟢 مراكز الخدمة الرسمية والمستقلة
+# ✅ دليل المالك
+application.add_handler(CallbackQueryHandler(show_manual_car_list, pattern=r"^manual_"))
+application.add_handler(CallbackQueryHandler(handle_manualcar, pattern=r"^manualcar_.*_\d+$"))
+application.add_handler(CallbackQueryHandler(handle_manualdfcar, pattern=r"^openpdf_"))
+
+# ✅ المراكز والمتاجر
 application.add_handler(CallbackQueryHandler(handle_service_centers, pattern=r"^service_\d+$"))
 application.add_handler(CallbackQueryHandler(handle_branch_list, pattern=r"^branches_\d+$"))
 application.add_handler(CallbackQueryHandler(handle_independent, pattern=r"^independent_\d+$"))
@@ -2486,27 +2483,14 @@ application.add_handler(CallbackQueryHandler(show_center_list, pattern=r"^show_c
 application.add_handler(CallbackQueryHandler(show_store_list, pattern=r"^show_stores_\d+$"))
 application.add_handler(CallbackQueryHandler(set_city, pattern=r"^setcity_.*_\d+$"))
 
-# 🟢 دليل المالك
-application.add_handler(CallbackQueryHandler(show_manual_car_list, pattern="^manual_"))
-application.add_handler(CallbackQueryHandler(handle_manualcar, pattern=r"^manualcar_.*_\d+$"))
-application.add_handler(CallbackQueryHandler(handle_manualdfcar, pattern="^openpdf_"))
-
-# 🟢 نظام الاقتراحات (نسخة مصححة ومتوافقة مع الهيكل الجديد)
-application.add_handler(CallbackQueryHandler(send_suggestion, pattern=r"^send_suggestion$"))
-application.add_handler(CallbackQueryHandler(handle_suggestion_reply, pattern=r"^reply_\d+_.+$"))
-application.add_handler(CallbackQueryHandler(handle_send_reply, pattern=r"^sendreply_[a-zA-Z0-9]+_\d+_.+$"))
-application.add_handler(CallbackQueryHandler(handle_custom_reply, pattern=r"^customreply_\d+_.+$"))
-application.add_handler(CallbackQueryHandler(submit_admin_reply, pattern=r"^submit_admin_reply$"))
-# 🟢 زر "إلغاء" لأي إجراء
+# ✅ زر الإلغاء
 application.add_handler(CallbackQueryHandler(handle_cancel, pattern=r"^cancel_"))
 
-# 🟠 أزرار غير نشطة
-application.add_handler(
-    CallbackQueryHandler(
-        lambda u, c: asyncio.create_task(u.callback_query.answer("🚫 هذا الزر غير نشط حالياً.")),
-        pattern="^disabled$"
-    )
-)
+# ✅ زر غير نشط
+application.add_handler(CallbackQueryHandler(
+    lambda u, c: asyncio.create_task(u.callback_query.answer("🚫 هذا الزر غير نشط حالياً.")),
+    pattern=r"^disabled$"
+))
 
 @app.api_route("/", methods=["GET", "HEAD"])
 async def root():

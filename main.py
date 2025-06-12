@@ -634,7 +634,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         register_message(user_id, msg.message_id, chat.id, context)
         return
 
-
 async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id

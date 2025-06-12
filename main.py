@@ -1412,33 +1412,33 @@ async def _send_independent_results(update: Update, context: ContextTypes.DEFAUL
     user_id = query.from_user.id
     message = query.message
     data = context.user_data.get(user_id, {})
-    selected_city = data.get("selected_city")
+    selected_city = data.get("city")
+
     if not selected_city:
         await query.answer("❌ لم يتم تحديد المدينة.", show_alert=True)
         return
 
-    filtered = df_independent[
+    # ✅ تصفية البيانات حسب المدينة والنوع
+    results = df_independent[
         (df_independent["city"] == selected_city) &
-        (df_independent["activity"] == filter_type)
+        (df_independent["type"].str.contains(filter_type))
     ]
 
-    if filtered.empty:
-        await query.answer("❌ لا توجد نتائج ضمن هذا النوع.", show_alert=True)
-        try:
-            await query.message.edit_reply_markup(reply_markup=None)
-        except:
-            pass
+    if results.empty:
+        await query.answer(f"🚫 لا توجد {filter_type} في {selected_city}.", show_alert=True)
         return
 
-    for _, row in filtered.iterrows():
-        name = str(row.get("name", "غير معروف")).strip()
-        phone = str(row.get("phone", "لا يوجد رقم")).strip()
-        activity = str(row.get("activity", "غير محدد")).strip()
-        image = row.get("image", None)
-        url = row.get("url", None)
+    user_name = query.from_user.full_name
+    now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
+    delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
 
-        if not name or not phone or not activity:
-            continue
+    for _, row in results.iterrows():
+        name = row.get("name", "بدون اسم")
+        phone = row.get("phone", "غير متوفر")
+        activity_type = row.get("type", "غير محدد")
+        city_name = row.get("city", "غير معروفة")
+        location_url = row.get("location_url", "❌ لا يوجد رابط")
+        image_url = row.get("image_url") if pd.notna(row.get("image_url")) else None
 
         caption = (
             f"`🧑‍💼 استعلام خاص بـ {user_name}`\n\n"
@@ -1449,40 +1449,23 @@ async def _send_independent_results(update: Update, context: ContextTypes.DEFAUL
             f"🌐 [رابط الموقع]({location_url})\n\n"
             f"`⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`"
         )
+
         try:
-            if image:
+            if image_url:
                 msg = await context.bot.send_photo(
-                    chat_id=message.chat.id,
-                    photo=image,
+                    chat_id=query.message.chat_id,
+                    photo=image_url,
                     caption=caption,
-                    parse_mode=ParseMode.HTML
+                    parse_mode=constants.ParseMode.MARKDOWN
                 )
             else:
-                msg = await context.bot.send_message(
-                    chat_id=message.chat.id,
-                    text=caption,
-                    parse_mode=ParseMode.HTML
-                )
+                msg = await query.message.reply_text(caption, parse_mode=constants.ParseMode.MARKDOWN)
         except:
-            msg = await context.bot.send_message(
-                chat_id=message.chat.id,
-                text=caption,
-                parse_mode=ParseMode.HTML
-            )
+            msg = await query.message.reply_text(caption, parse_mode=constants.ParseMode.MARKDOWN)
 
-        register_message(user_id, msg.message_id, message.chat.id)
+        register_message(user_id, msg.message_id, query.message.chat_id, context)
 
-    try:
-        markup = query.message.reply_markup
-        if markup and markup.inline_keyboard:
-            new_buttons = []
-            for row in markup.inline_keyboard:
-                new_row = [btn for btn in row if filter_type not in btn.text]
-                if new_row:
-                    new_buttons.append(new_row)
-            await query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(new_buttons) if new_buttons else None)
-    except:
-        pass
+    await log_event(update, f"📜 عرض قائمة {filter_type} في {selected_city}")
         
 async def show_center_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

@@ -2485,7 +2485,6 @@ application.add_handler(CallbackQueryHandler(handle_service_centers, pattern=r"^
 application.add_handler(CallbackQueryHandler(handle_branch_list, pattern=r"^branches_\d+$"))
 application.add_handler(CallbackQueryHandler(handle_independent, pattern=r"^independent_\d+$"))
 application.add_handler(CallbackQueryHandler(show_center_list, pattern=r"^show_centers_\d+$"))
-application.add_handler(CallbackQueryHandler(show_store_list, pattern=r"^show_stores_\d+$"))
 application.add_handler(CallbackQueryHandler(set_city, pattern=r"^setcity_.*_\d+$"))
 
 # ✅ زر الإلغاء

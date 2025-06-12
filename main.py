@@ -1405,36 +1405,40 @@ async def set_city(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_message(user_id, msg.message_id, query.message.chat_id, context)
     await log_event(update, f"اختار مدينة: {city}")
 
-async def _send_independent_results(update: Update, context: ContextTypes.DEFAULT_TYPE, filter_type: str):
+async def _send_independent_results(update: Update, context: ContextTypes.DEFAULT_TYPE, filter_type: str = None):
     query = update.callback_query
-    user_id = query.from_user.id
-    city = context.user_data.get(user_id, {}).get("city")
+    await query.answer()
 
-    if not city:
-        await query.answer("❌ لم يتم تحديد المدينة. استخدم /go لإعادة التحديد.", show_alert=True)
+    user_id = query.from_user.id
+    message = query.message
+    data = context.user_data.get(user_id, {})
+    selected_city = data.get("selected_city")
+    if not selected_city:
+        await query.answer("❌ لم يتم تحديد المدينة.", show_alert=True)
         return
 
-    results = df_independent[
-        (df_independent["city"] == city) & (df_independent["type"].str.contains(filter_type))
+    filtered = df_independent[
+        (df_independent["city"] == selected_city) &
+        (df_independent["activity"] == filter_type)
     ]
 
-    if results.empty:
-        msg = await query.message.reply_text(f"🚫 لا توجد بيانات {filter_type} حالياً في {city}.")
-        register_message(user_id, msg.message_id, query.message.chat_id, context)
-        await log_event(update, f"🚫 لا توجد نتائج {filter_type} في {city}", level="error")
+    if filtered.empty:
+        await query.answer("❌ لا توجد نتائج ضمن هذا النوع.", show_alert=True)
+        try:
+            await query.message.edit_reply_markup(reply_markup=None)
+        except:
+            pass
         return
 
-    user_name = query.from_user.full_name
-    now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-    delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
+    for _, row in filtered.iterrows():
+        name = str(row.get("name", "غير معروف")).strip()
+        phone = str(row.get("phone", "لا يوجد رقم")).strip()
+        activity = str(row.get("activity", "غير محدد")).strip()
+        image = row.get("image", None)
+        url = row.get("url", None)
 
-    for _, row in results.iterrows():
-        name = row.get("name", "بدون اسم")
-        phone = row.get("phone", "غير متوفر")
-        activity_type = row.get("type", "غير محدد")
-        city_name = row.get("city", "غير معروفة")
-        location_url = row.get("location_url", "❌ لا يوجد رابط")
-        image_url = row.get("image_url") if pd.notna(row.get("image_url", None)) else None
+        if not name or not phone or not activity:
+            continue
 
         caption = (
             f"`🧑‍💼 استعلام خاص بـ {user_name}`\n\n"
@@ -1445,24 +1449,41 @@ async def _send_independent_results(update: Update, context: ContextTypes.DEFAUL
             f"🌐 [رابط الموقع]({location_url})\n\n"
             f"`⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 5 دقائق ({delete_time} / 🇸🇦)`"
         )
-
         try:
-            if image_url:
+            if image:
                 msg = await context.bot.send_photo(
-                    chat_id=query.message.chat_id,
-                    photo=image_url,
+                    chat_id=message.chat.id,
+                    photo=image,
                     caption=caption,
-                    parse_mode=constants.ParseMode.MARKDOWN
+                    parse_mode=ParseMode.HTML
                 )
             else:
-                msg = await query.message.reply_text(caption, parse_mode=constants.ParseMode.MARKDOWN)
+                msg = await context.bot.send_message(
+                    chat_id=message.chat.id,
+                    text=caption,
+                    parse_mode=ParseMode.HTML
+                )
         except:
-            msg = await query.message.reply_text(caption, parse_mode=constants.ParseMode.MARKDOWN)
+            msg = await context.bot.send_message(
+                chat_id=message.chat.id,
+                text=caption,
+                parse_mode=ParseMode.HTML
+            )
 
-        register_message(user_id, msg.message_id, query.message.chat_id, context)
+        register_message(user_id, msg.message_id, message.chat.id)
 
-    await log_event(update, f"📜 عرض قائمة {filter_type} في {city}")
-
+    try:
+        markup = query.message.reply_markup
+        if markup and markup.inline_keyboard:
+            new_buttons = []
+            for row in markup.inline_keyboard:
+                new_row = [btn for btn in row if filter_type not in btn.text]
+                if new_row:
+                    new_buttons.append(new_row)
+            await query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(new_buttons) if new_buttons else None)
+    except:
+        pass
+        
 async def show_center_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = int(query.data.split("_")[2])
@@ -1481,7 +1502,6 @@ async def show_center_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data.setdefault(user_id, {})["centers_used"] = True
 
-    # حذف زر "المراكز المعتمدة" فقط
     try:
         keyboard = query.message.reply_markup.inline_keyboard
         updated_keyboard = [row for row in keyboard if not any("show_centers_" in btn.callback_data for btn in row)]
@@ -1491,6 +1511,34 @@ async def show_center_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await _send_independent_results(update, context, filter_type="مركز")
     await log_event(update, f"📜 عرض قائمة المراكز المعتمدة في {context.user_data[user_id].get('city', 'غير معروفة')}")
+
+async def show_store_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = int(query.data.split("_")[2])
+
+    if query.from_user.id != user_id:
+        requester = await context.bot.get_chat(user_id)
+        await query.answer(
+            f"❌ هذا الاستعلام خاص بـ {requester.first_name} {requester.last_name} - استخدم الأمر /go",
+            show_alert=True
+        )
+        return
+
+    if context.user_data.get(user_id, {}).get("stores_used"):
+        await query.answer("❌ لا يمكنك تكرار هذا الاستعلام في نفس الجلسة، استخدم /go من جديد.", show_alert=True)
+        return
+
+    context.user_data.setdefault(user_id, {})["stores_used"] = True
+
+    try:
+        keyboard = query.message.reply_markup.inline_keyboard
+        updated_keyboard = [row for row in keyboard if not any("show_stores_" in btn.callback_data for btn in row)]
+        await query.message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(updated_keyboard))
+    except:
+        pass
+
+    await _send_independent_results(update, context, filter_type="متجر")
+    await log_event(update, f"📜 عرض قائمة المتاجر المعتمدة في {context.user_data[user_id].get('city', 'غير معروفة')}")
 
 ### 🟢 تحديث دالة button لتسجيل معلومات المجموعة بشكل صحيح:
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2485,6 +2533,7 @@ application.add_handler(CallbackQueryHandler(handle_service_centers, pattern=r"^
 application.add_handler(CallbackQueryHandler(handle_branch_list, pattern=r"^branches_\d+$"))
 application.add_handler(CallbackQueryHandler(handle_independent, pattern=r"^independent_\d+$"))
 application.add_handler(CallbackQueryHandler(show_center_list, pattern=r"^show_centers_\d+$"))
+application.add_handler(CallbackQueryHandler(show_store_list, pattern=r"^show_stores_\d+$"))
 application.add_handler(CallbackQueryHandler(set_city, pattern=r"^setcity_.*_\d+$"))
 
 # ✅ زر الإلغاء

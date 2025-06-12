@@ -1435,18 +1435,24 @@ async def _send_independent_results(update: Update, context: ContextTypes.DEFAUL
         phone = row["phone"]
         activity = row["activity"]
         image = row.get("image")
+        url = row.get("url")  # ✅ الحصول على الرابط من الجدول إن وُجد
 
-        caption = f"🏷️ <b>{name}</b>
-📞 {phone}
-🔧 النوع: {activity}"
+        caption = f"""🏷️ <b>{name}</b>
+   📞 {phone}
+    📍 النشاط: {activity}"""
+
+        if url:
+            caption += f"\n🔗 <a href=\"{url}\">رابط الموقع</a>"  # ✅ رابط قابل للضغط
+
         if image:
             try:
-                msg = await context.bot.send_photo(
-                    chat_id=message.chat.id,
+                await context.bot.send_photo(
+                    chat_id=chat.id,
                     photo=image,
                     caption=caption,
-                    parse_mode="HTML"
+                    parse_mode=ParseMode.HTML
                 )
+
             except:
                 msg = await context.bot.send_message(
                     chat_id=message.chat.id,

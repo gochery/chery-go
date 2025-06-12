@@ -440,6 +440,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     user_name = user.full_name
 
+    # ✅ حماية من التطفل في الخاص
+    if chat.type == "private" and user_id not in AUTHORIZED_USERS and not context.user_data.get(user_id, {}).get("session_valid"):
+        msg = await message.reply_text("🚫 لا يمكنك استخدام هذه الميزة من الخاص.\n🔐 يرجى كتابة /go داخل المجموعة أولاً.")
+        register_message(user_id, msg.message_id, chat_id, context)
+        return
+
     action = context.user_data.get(admin_id, {}).get("action")
 
     # ✅ حذف مشرف
@@ -466,7 +472,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data[admin_id]["action"] = None
         return
 
-    # ✅ إضافة مشرف جديد
+    # ✅ إضافة مشرف
     if action == "awaiting_new_admin_id":
         try:
             text = message.text.strip()
@@ -489,7 +495,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data[admin_id]["action"] = None
         return
 
-    # ✅ حالة إرسال اقتراح أو رد مخصص
+    # ✅ حالات الاقتراح والرد المخصص
     actual_user_id = context.user_data.get(admin_id, {}).get("custom_reply_for", admin_id)
     mode = context.user_data.get(actual_user_id, {}).get("action") or context.user_data.get(admin_id, {}).get("compose_mode")
 
@@ -501,7 +507,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         record = suggestion_records[actual_user_id][suggestion_id]
 
-        # 🧹 إعادة تعيين في البداية إذا لم يسبق إدخال شيء
         if not context.user_data[admin_id].get("compose_text") and not context.user_data[admin_id].get("compose_media"):
             if mode == "suggestion":
                 record["text"] = ""
@@ -510,7 +515,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 record["reply_text"] = ""
                 record["reply_media"] = None
 
-        # ✅ تحديد اسم ومعرف المجموعة بدقة
+        # تحديث بيانات المجموعة
         group_name = chat.title if chat.type in ["group", "supergroup"] else "خاص"
         group_id = chat.id
         if group_name == "خاص" or group_id == actual_user_id:
@@ -522,7 +527,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         record["group_id"] = group_id
         context.user_data[admin_id]["compose_mode"] = mode
 
-        # ✅ حفظ النص حسب الوضع
+        # ✅ حفظ النص
         if message.text:
             context.user_data[admin_id]["compose_text"] = message.text.strip()
             if mode == "suggestion":
@@ -530,7 +535,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif mode == "custom_reply":
                 record["reply_text"] = message.text.strip()
 
-        # ✅ حفظ الوسائط حسب الوضع
+        # ✅ حفظ الوسائط
         elif message.photo or message.video or message.document or message.voice:
             if message.photo:
                 file_id = message.photo[-1].file_id
@@ -550,7 +555,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif mode == "custom_reply":
                 record["reply_media"] = {"type": media_type, "file_id": file_id}
 
-        # ✅ أزرار التفاعل حسب الوضع
+        # ✅ أزرار الرد
         if mode == "suggestion":
             buttons = [
                 [InlineKeyboardButton("📤 إرسال", callback_data="send_suggestion")],
@@ -573,16 +578,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text("🖼️ تم حفظ الوسائط. يمكنك الآن إدخال نص أو الإرسال:", reply_markup=InlineKeyboardMarkup(buttons))
         else:
             await message.reply_text("⚠️ لم يتم تسجيل أي محتوى. الرجاء إدخال نص أو وسائط.")
-        return
+        return  # ✅ منع التداخل مع بقية الكود
 
-    # ✅ استعلام قطع غيار
+    # ✅ استعلام قطع الغيار بالنص
     if context.user_data.get(user_id, {}).get("action") == "parts" and message.text:
         part_name = message.text.strip().lower()
         context.user_data[user_id].setdefault("search_attempts", 0)
         context.user_data[user_id]["search_attempts"] += 1
 
         if context.user_data[user_id]["search_attempts"] > 5:
-            msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث.\n🔁 ابدأ من جديد باستخدام go من المجموعة.")
+            msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث.\n🔁 ابدأ من جديد باستخدام /go من المجموعة.")
             register_message(user_id, msg.message_id, chat.id, context)
             context.user_data[user_id].clear()
             return
@@ -603,62 +608,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         user_name = message.from_user.full_name
-        selected_car = context.user_data[user_id].get("selected_car")
-        part_name = message.text.strip()
-
-# أمان HTML
         user_name_safe = html.escape(user_name)
         selected_car_safe = html.escape(selected_car)
         part_name_safe = html.escape(part_name)
-
-# توقيت الحذف التلقائي
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=5)).strftime("%I:%M %p")
 
-# 🔻 رأس الصندوق - اسم المستعلم والفئة
-        header = (
-            f"<code>🧑‍💼 استعلام خاص بـ: {user_name_safe}\n"
-           f"🚗 الفئة: {selected_car_safe}</code>\n\n"
-        )
-
-# 🔻 عنوان النتائج فقط بصندوق
+        header = f"<code>🧑‍💼 استعلام خاص بـ: {user_name_safe}\n🚗 الفئة: {selected_car_safe}</code>\n\n"
         results = f"<code>📌 نتائج البحث عن: {part_name_safe}</code>\n\n"
 
-# 🔻 جسم النتائج بدون صندوق
         for idx, row in matches.iterrows():
             station = html.escape(str(row['Station Name'])) if pd.notna(row['Station Name']) else "غير معروف"
             part_no = html.escape(str(row['Part No'])) if pd.notna(row['Part No']) else "غير متوفر"
-            results += (
-                f"🧩 القطعة: {station}\n"
-               f"🔢 رقم القطعة: {part_no}\n\n"
-        ) 
+            results += f"🧩 القطعة: {station}\n🔢 رقم القطعة: {part_no}\n\n"
 
-# 🔻 التذييل بصندوق
-        footer = (
-            f"<code>📸 الصور متاحة عبر التصنيفات\n"
-            f"⏳ الحذف التلقائي خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
-        )
-
-# 🔻 دمج الرسالة النهائية
+        footer = f"<code>📸 الصور متاحة عبر التصنيفات\n⏳ الحذف التلقائي خلال 5 دقائق ({delete_time} 🇸🇦)</code>"
         response = header + results + footer
 
-# زر عرض القطع المصنفة
         safe_car_name = selected_car.replace(" ", "_")
         callback_data = f"showparts_{safe_car_name}_{user_id}"
         keyboard = [[InlineKeyboardButton("🗂 عرض القطع المصنفة", callback_data=callback_data)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-# إرسال الرسالة
-        msg = await message.reply_text(
-            response,
-            parse_mode="HTML",
-            disable_web_page_preview=True,
-            reply_markup=reply_markup
-        )
-
-# تسجيل الرسالة
+        msg = await message.reply_text(response, parse_mode="HTML", disable_web_page_preview=True, reply_markup=reply_markup)
         register_message(user_id, msg.message_id, chat.id, context)
         return
+
 
 async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

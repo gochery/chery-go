@@ -437,13 +437,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = chat.id
     user_name = update.effective_user.full_name
 
-    # ✅ تجاهل الرسائل إذا لم تكن جلسة اقتراح أو رد مخصص نشطة
+    # ✅ ضمان وجود context.user_data[user_id]
+    context.user_data.setdefault(user_id, {})
+    user_data = context.user_data[user_id]
+
+    # ✅ التحقق قبل أي مسح — يجب أن تكون الجلسة نشطة
+    if user_data.get("action") not in ["suggestion", "custom_reply"] and user_data.get("compose_mode") not in ["suggestion", "custom_reply"]:
+        return
+
+    # ✅ مسح بيانات المستخدم بعد التأكد أن الجلسة فعّالة
+    context.user_data[user_id].clear()
+
+    # ✅ إعادة التحقق بعد المسح لتجنب أي تكرار لاحق
     user_data = context.user_data.get(user_id, {})
     if user_data.get("action") not in ["suggestion", "custom_reply"] and user_data.get("compose_mode") not in ["suggestion", "custom_reply"]:
         return
 
     global df_admins
-    message = update.message
     user = update.effective_user
     admin_id = user.id
     chat = update.effective_chat
@@ -595,7 +605,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if context.user_data[user_id]["search_attempts"] > 5:
             msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث.\n🔁 ابدأ من جديد باستخدام go من المجموعة.")
             register_message(user_id, msg.message_id, chat.id, context)
-            context.user_data[user_id].clear()
             return
 
         selected_car = context.user_data[user_id].get("selected_car")
@@ -674,7 +683,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
-    mode = context.user_data.get(user_id, {}).get("compose_mode")
+    context.user_data.setdefault(user_id, {})  
+    mode = context.user_data[user_id].get("compose_mode")
 
     if mode == "suggestion":
         await cancel_suggestion_session(user_id, context)

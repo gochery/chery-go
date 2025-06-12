@@ -1436,9 +1436,8 @@ async def _send_independent_results(update: Update, context: ContextTypes.DEFAUL
         activity = row["activity"]
         image = row.get("image")
 
-        caption = f"🏷️ <b>{name}</b>
-📞 {phone}
-🔧 النوع: {activity}"
+        caption = f"🏷️ <b>{name}</b>\n📞 {phone}\n🔧 النوع: {activity}"
+
         if image:
             try:
                 msg = await context.bot.send_photo(

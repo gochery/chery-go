@@ -515,7 +515,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 record["reply_text"] = ""
                 record["reply_media"] = None
 
-        # تحديث بيانات المجموعة
         group_name = chat.title if chat.type in ["group", "supergroup"] else "خاص"
         group_id = chat.id
         if group_name == "خاص" or group_id == actual_user_id:
@@ -527,7 +526,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         record["group_id"] = group_id
         context.user_data[admin_id]["compose_mode"] = mode
 
-        # ✅ حفظ النص
         if message.text:
             context.user_data[admin_id]["compose_text"] = message.text.strip()
             if mode == "suggestion":
@@ -535,7 +533,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif mode == "custom_reply":
                 record["reply_text"] = message.text.strip()
 
-        # ✅ حفظ الوسائط
         elif message.photo or message.video or message.document or message.voice:
             if message.photo:
                 file_id = message.photo[-1].file_id
@@ -555,7 +552,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif mode == "custom_reply":
                 record["reply_media"] = {"type": media_type, "file_id": file_id}
 
-        # ✅ أزرار الرد
         if mode == "suggestion":
             buttons = [
                 [InlineKeyboardButton("📤 إرسال", callback_data="send_suggestion")],
@@ -578,8 +574,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text("🖼️ تم حفظ الوسائط. يمكنك الآن إدخال نص أو الإرسال:", reply_markup=InlineKeyboardMarkup(buttons))
         else:
             await message.reply_text("⚠️ لم يتم تسجيل أي محتوى. الرجاء إدخال نص أو وسائط.")
-        return  # ✅ منع التداخل مع بقية الكود
-
+        return
+        
     # ✅ استعلام قطع الغيار بالنص
     if context.user_data.get(user_id, {}).get("action") == "parts" and message.text:
         part_name = message.text.strip().lower()

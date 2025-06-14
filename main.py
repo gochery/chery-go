@@ -598,14 +598,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
          context.user_data[user_id].clear()
          return
 
-     context.user_data[user_id]["search_attempts"] = current_attempts + 1
-     remaining = MAX_ATTEMPTS - current_attempts - 1
+      context.user_data[user_id]["search_attempts"] = current_attempts + 1
+      remaining = MAX_ATTEMPTS - current_attempts - 1
 
-     if remaining > 0:
-         await message.reply_text(f"🔁 تم تسجيل المحاولة رقم {current_attempts + 1}.\nتبقى لك {remaining} من أصل {MAX_ATTEMPTS} محاولات.")
-     else:
+      if remaining > 0:
+          await message.reply_text(f"🔁 تم تسجيل المحاولة رقم {current_attempts + 1}.\nتبقى لك {remaining} من أصل {MAX_ATTEMPTS} محاولات.")
+      else:
          await message.reply_text("⚠️ هذه آخر محاولة مسموحة لك.")
-
 
         selected_car = context.user_data[user_id].get("selected_car")
         if not selected_car:

@@ -449,14 +449,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     user_name = user.full_name
 
-    # ✅ حماية من التطفل في الخاص
-    if chat.type == "private" and user_id not in AUTHORIZED_USERS and not context.user_data.get(user_id, {}).get("session_valid"):
-        msg = await message.reply_text("🚫 لا يمكنك استخدام هذه الميزة من الخاص.\n🔐 يرجى كتابة /go داخل المجموعة أولاً.")
-        register_message(user_id, msg.message_id, chat_id, context)
-        return
-
-    action = context.user_data.get(admin_id, {}).get("action")
-
     # ✅ حذف مشرف
     if action == "awaiting_admin_removal":
         try:

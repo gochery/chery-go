@@ -338,9 +338,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "اختار الخدمة المطلوبة 🛠️ :",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+# ✅ إعادة تهيئة الجلسة بعد /go
+    for key in list(context.user_data[user_id].keys()):
+        if key.startswith("image_opened_") or key.endswith("_used") or key.endswith("_sent"):
+            context.user_data[user_id].pop(key, None)
 
     register_message(user_id, msg1.message_id, chat_id, context)
     register_message(user_id, msg2.message_id, chat_id, context)
+
+    # ✅ مسح التصنيفات المستخدمة عند الرجوع من /go
+    for key in list(context.user_data[user_id].keys()):
+        if key.startswith("cat_used_"):
+            context.user_data[user_id].pop(key, None)
 
     context.user_data[user_id]["session_valid"] = False
 
@@ -1594,6 +1603,17 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not selected_car:
             await query.answer("❌ يرجى اختيار فئة السيارة أولاً.", show_alert=True)
             return
+
+    # ✅ منع التكرار أثناء الجلسة الواحدة
+        keyword_flag = f"cat_used_{keyword}"
+        if context.user_data[user_id].get(keyword_flag):
+            await query.answer(
+                f"❌ عزيزي {query.from_user.full_name}، لا يمكنك فتح هذا التصنيف مرتين بنفس الجلسة. الرجاء استخدام /go مره اخرى.",
+                show_alert=True
+           )
+            return
+
+        context.user_data[user_id][keyword_flag] = True  # تسجيل الاستخدام
 
         filtered_df = df_parts[df_parts["Station No"] == selected_car]
         matches = filtered_df[

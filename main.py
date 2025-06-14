@@ -314,6 +314,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     context.user_data[user_id].pop("suggestion_used", None)
+    context.user_data[user_id].pop("search_attempts", None)  # 🔄 تصفير عدد محاولات البحث اليدوي
+
+    keyboard = [
+        [InlineKeyboardButton("🔧 استعلام  قطع الغيار", callback_data=f"parts_{user_id}")],
+        [InlineKeyboardButton("🚗 استعلام  الصيانة الدورية", callback_data=f"maintenance_{user_id}")],
+        [InlineKeyboardButton("📘 عرض دليل المالك CHERY", callback_data=f"manual_{user_id}")],
+        [InlineKeyboardButton("🛠️ المتاجر ومراكر الخدمة", callback_data=f"service_{user_id}")],
+        [InlineKeyboardButton("✉️ تقديم اقتراح أو ملاحظة", callback_data=f"suggestion_{user_id}")]
+    ]
 
     keyboard = [
         [InlineKeyboardButton("🔧 استعلام  قطع الغيار", callback_data=f"parts_{user_id}")],
@@ -580,14 +589,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ✅ استعلام قطع الغيار بالنص
     if context.user_data.get(user_id, {}).get("action") == "parts" and message.text:
         part_name = message.text.strip().lower()
-        context.user_data[user_id].setdefault("search_attempts", 0)
-        context.user_data[user_id]["search_attempts"] += 1
+        MAX_ATTEMPTS = 5
+     current_attempts = context.user_data[user_id].get("search_attempts", 0)
 
-        if context.user_data[user_id]["search_attempts"] > 5:
-            msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث.\n🔁 ابدأ من جديد باستخدام /go من المجموعة.")
-            register_message(user_id, msg.message_id, chat.id, context)
-            context.user_data[user_id].clear()
-            return
+     if current_attempts >= MAX_ATTEMPTS:
+         msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث اليدوي (5 محاولات).\n🔁 ابدأ من جديد باستخدام /go من المجموعة.")
+         register_message(user_id, msg.message_id, chat.id, context)
+         context.user_data[user_id].clear()
+         return
+
+     context.user_data[user_id]["search_attempts"] = current_attempts + 1
+     remaining = MAX_ATTEMPTS - current_attempts - 1
+
+     if remaining > 0:
+         await message.reply_text(f"🔁 تم تسجيل المحاولة رقم {current_attempts + 1}.\nتبقى لك {remaining} من أصل {MAX_ATTEMPTS} محاولات.")
+     else:
+         await message.reply_text("⚠️ هذه آخر محاولة مسموحة لك.")
+
 
         selected_car = context.user_data[user_id].get("selected_car")
         if not selected_car:

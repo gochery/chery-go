@@ -590,7 +590,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get(user_id, {}).get("action") == "parts" and message.text:
         part_name = message.text.strip().lower()
         MAX_ATTEMPTS = 5
-     current_attempts = context.user_data[user_id].get("search_attempts", 0)
+        current_attempts = context.user_data[user_id].get("search_attempts", 0)
 
      if current_attempts >= MAX_ATTEMPTS:
          msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث اليدوي (5 محاولات).\n🔁 ابدأ من جديد باستخدام /go من المجموعة.")

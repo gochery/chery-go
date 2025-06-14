@@ -458,6 +458,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     user_name = user.full_name
 
+    action = context.user_data.get(user_id, {}).get("action")
+
     # ✅ حذف مشرف
     if action == "awaiting_admin_removal":
         try:

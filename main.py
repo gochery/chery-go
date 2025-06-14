@@ -586,25 +586,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.reply_text("⚠️ لم يتم تسجيل أي محتوى. الرجاء إدخال نص أو وسائط.")
         return
         
-    # ✅ استعلام قطع الغيار بالنص
+        # ✅ استعلام قطع الغيار بالنص
     if context.user_data.get(user_id, {}).get("action") == "parts" and message.text:
         part_name = message.text.strip().lower()
         MAX_ATTEMPTS = 5
         current_attempts = context.user_data[user_id].get("search_attempts", 0)
 
-     if current_attempts >= MAX_ATTEMPTS:
-         msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث اليدوي (5 محاولات).\n🔁 ابدأ من جديد باستخدام /go من المجموعة.")
-         register_message(user_id, msg.message_id, chat.id, context)
-         context.user_data[user_id].clear()
-         return
+        if current_attempts >= MAX_ATTEMPTS:
+            msg = await message.reply_text("🚫 لقد استهلكت جميع محاولات البحث اليدوي (5 محاولات).\n🔁 ابدأ من جديد باستخدام /go من المجموعة.")
+            register_message(user_id, msg.message_id, chat.id, context)
+            context.user_data[user_id].clear()
+            return
 
-      context.user_data[user_id]["search_attempts"] = current_attempts + 1
-      remaining = MAX_ATTEMPTS - current_attempts - 1
+        context.user_data[user_id]["search_attempts"] = current_attempts + 1
+        remaining = MAX_ATTEMPTS - current_attempts - 1
 
-      if remaining > 0:
-          await message.reply_text(f"🔁 تم تسجيل المحاولة رقم {current_attempts + 1}.\nتبقى لك {remaining} من أصل {MAX_ATTEMPTS} محاولات.")
-      else:
-         await message.reply_text("⚠️ هذه آخر محاولة مسموحة لك.")
+        if remaining > 0:
+            await message.reply_text(f"🔁 تم تسجيل المحاولة رقم {current_attempts + 1}.\nتبقى لك {remaining} من أصل {MAX_ATTEMPTS} محاولات.")
+        else:
+            await message.reply_text("⚠️ هذه آخر محاولة مسموحة لك.")
 
         selected_car = context.user_data[user_id].get("selected_car")
         if not selected_car:

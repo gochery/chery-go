@@ -3926,7 +3926,7 @@ application.add_handler(CallbackQueryHandler(
 async def root():
     return {"message": "Bot is alive"}
 
-@@app.post("/webhook")
+@app.post("/webhook")
 async def webhook_handler(request: Request):
     json_data = await request.json()
 
@@ -4081,4 +4081,5 @@ async def cmd_broadcast_update(update: Update, context: ContextTypes.DEFAULT_TYP
 try:
     application.add_handler(CommandHandler("broadcast_update", cmd_broadcast_update))
 except Exception as _e:
+
     logging.warning(f"[init] تعذر تسجيل broadcast_update: {_e}")

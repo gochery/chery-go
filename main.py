@@ -635,7 +635,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
 
         video_path = "GO-CHERY.mp4"   # ملف الفيديو الجديد
-        photo_path = "GO-CHERY.jpeg"   # صورة احتياطية لو لم يوجد الفيديو
+        photo_path = "GO-CHERY.JPG"   # صورة احتياطية لو لم يوجد الفيديو
 
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(seconds=90)).strftime("%I:%M %p")
@@ -4858,4 +4858,5 @@ async def cmd_broadcast_update(update: Update, context: ContextTypes.DEFAULT_TYP
 try:
     application.add_handler(CommandHandler("broadcast_update", cmd_broadcast_update))
 except Exception as _e:
+
     logging.warning(f"[init] تعذر تسجيل broadcast_update: {_e}")

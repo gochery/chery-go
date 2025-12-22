@@ -208,7 +208,7 @@ STATS_CACHE_TTL = 60  # ثانية
 
 # إحصائيات ثابتة (تعويض سنتين تشغيل)
 BASE_STATS = {
-    "users": 9003,
+    "users": 9013,
     "groups": 14,
     "go_uses": 76155,
 }
@@ -6847,4 +6847,5 @@ try:
 except Exception as _e:
 
     logging.warning(f"[init] تعذر تسجيل broadcast_update: {_e}")
+
 

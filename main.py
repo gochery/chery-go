@@ -5618,7 +5618,6 @@ async def send_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     thank_you_message += (
         "✅ تم إرسال الاستفسار بنجاح إلى فريق الدعم الفني .\n"
         "📌 سيتم مراجعة طلبك والرد عليك في هذه المحادثة.\n\n"
-        "يمكنك العودة في أي وقت إلى القائمة الرئيسية من الزر بالأسفل."
     )
 
     back_keyboard = InlineKeyboardMarkup(
@@ -6846,4 +6845,5 @@ async def cmd_broadcast_update(update: Update, context: ContextTypes.DEFAULT_TYP
 try:
     application.add_handler(CommandHandler("broadcast_update", cmd_broadcast_update))
 except Exception as _e:
+
     logging.warning(f"[init] تعذر تسجيل broadcast_update: {_e}")

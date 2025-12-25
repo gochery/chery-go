@@ -1215,7 +1215,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "user_name": user_name
         }
 
-        # ← إعادة المحاولات عند بدء GO من المجموعة
+        # ← إعادة المحاولات والجلسة عند بدء GO من المجموعة
         context.user_data[user_id]["attempts_left"] = 3
         context.user_data[user_id]["session_valid"] = True
 
@@ -1328,6 +1328,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     register_message(user_id, msg1.message_id, chat_id, context)
     register_message(user_id, msg2.message_id, chat_id, context)
 
+
 async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user = update.effective_user
@@ -1344,7 +1345,7 @@ async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "user_name": user_name
         }
 
-        # إنشاء جلسة مؤقتة صالحة لمرة واحدة فقط وإعادة عداد المحاولات
+        # إنشاء جلسة صالحة وإعادة عداد المحاولات
         context.user_data[user_id] = context.user_data.get(user_id, {})
         context.user_data[user_id]["session_valid"] = True
         context.user_data[user_id]["attempts_left"] = 3  # ← إعادة المحاولات عند بدء GO جديد
@@ -1371,31 +1372,13 @@ async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # ✅ التعامل في الخاص
-    if chat.type == "private" and (
-        not context.user_data.get(user_id, {}).get("session_valid")
-    ) and user_id not in AUTHORIZED_USERS:
-        now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-        delete_time = (now_saudi + timedelta(minutes=15)).strftime("%I:%M %p")
+    if chat.type == "private" and user_id not in AUTHORIZED_USERS:
+        # إذا كانت الجلسة غير صالحة أو انتهت المحاولات، نعيد ضبطها عند العودة من المجموعة
+        if not context.user_data.get(user_id, {}).get("session_valid"):
+            context.user_data[user_id]["session_valid"] = True
+            context.user_data[user_id]["attempts_left"] = 3
 
-        user_block = f"🧑‍🏫 مرحبا {user_name}"
-        alert_message = (
-            "📣 يسعدنا اهتمامك بخدمات *نظام الصيانة GO*!\n\n"
-            "❌ لا يمكنك بدء الخدمة مباشرة من الخاص.\n"
-            "🔐 حفاظًا على الخصوصية، يرجى العودة إلى مجموعتك أو الانضمام إلى المجموعة الرئيسية أدناه وكتابة الأمر (go) هناك.\n\n"
-            "[👥 اضغط هنا للانضمام إلى مجموعة CHERY KSA ](https://t.me/CHERYKSA_group)"
-        )
-        delete_block = f"⏳ سيتم حذف هذا التنبيه تلقائيًا خلال 10 دقيقة ({delete_time} / 🇸🇦)"
-
-        msg = await update.message.reply_text(
-            f"{user_block}\n\n{alert_message}\n\n{delete_block}",
-            parse_mode=constants.ParseMode.MARKDOWN,
-            disable_web_page_preview=True
-        )
-        register_message(user_id, msg.message_id, chat_id, context)
-        return
-
-    # ✅ في الخاص مع جلسة صالحة أو مشرف → نترك دالة start تكمل نفس منطق الترحيب والقائمة
-    await start(update, context)
+        await start(update, context)
     
 async def start_suggestion_session(user_id, context):
     from uuid import uuid4
@@ -5485,12 +5468,12 @@ async def send_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     attempts = user_data.get("support_attempts", 0)
 
     if attempts >= 3:
-        await query.answer("🚫 لقد استنفذت جميع الاستفسارات المقرره بالجلسة يجب استحدام GO بالمجموعة والعودة لمركز الدعم.", show_alert=True)
-
-        await query.edit_message_text(
-            f"⚠️ {query.from_user.full_name}\n"
-            "لقد استنفدت جميع محاولات إرسال الاستفسارات.\n"
-            "يرجى بدء جلسة جديدة عبر كتابة (go) في المجموعة."
+        user_name = query.from_user.full_name
+        await query.answer(
+            f"⚠️ عذرًا {user_name}، لقد استنفدت جميع الاستفسارات المقررة لهذه الجلسة.\n\n"
+            "يرجى العودة إلى المجموعة وكتابة (go) لبدء اتصال جديد مع مركز الدعم.\n"
+            "شكرًا لتفهمك واهتمامك بخدمات GO.",
+            show_alert=True
         )
 
         # إزالة زر إرسال استفسار آخر

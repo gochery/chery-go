@@ -256,14 +256,14 @@ STATS_CACHE_TTL = 60  # ثانية
 
 # إحصائيات ثابتة (تعويض سنتين تشغيل)
 BASE_STATS = {
-    "users": 10750,
+    "users": 10850,
     "groups": 14,
-    "go_uses": 109900,
+    "go_uses": 112990,
 }
 
 # تعويض تقييمات سنتين تشغيل (إحصائيات فقط، لا تُكتب في الإكسل)
 BASE_RATINGS = {
-    "count": 4721,   # 👈 عدّل هذا الرقم: عدد المقيمين الافتراضي القديم
+    "count": 4801,   # 👈 عدّل هذا الرقم: عدد المقيمين الافتراضي القديم
      "avg": 5.0,     # 👈 متوسط التقييم (من 5)
 }
 
@@ -1296,12 +1296,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ✅ اختصار شاشة الترحيب (اسم + سطرين فقط)
         full_caption = (
             f"`👤 {user_name}`\n"
-            "✨ مرحبًا بك في نظام الصيانة والدعم الفني GO الذكي\n"
+            "✨ مرحبًا بك في نظام الصيانة والدعم الفني GO\n"
         )
 
         bot_username = context.bot.username
         link = f"https://t.me/{bot_username}?start=go"
-        keyboard = [[InlineKeyboardButton("🚀 اضغط هنا لبدء خدمات GO", url=link)]]
+        keyboard = [[InlineKeyboardButton("🚀 ابدأ الآن", url=link)]]
 
         try:
             if os.path.exists(video_path):
@@ -7245,5 +7245,6 @@ async def cmd_broadcast_update(update: Update, context: ContextTypes.DEFAULT_TYP
 try:
     application.add_handler(CommandHandler("broadcast_update", cmd_broadcast_update))
 except Exception as _e:
+
 
     logging.warning(f"[init] تعذر تسجيل broadcast_update: {_e}")

@@ -1151,7 +1151,7 @@ def build_main_menu_keyboard(user_id: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton("🚗 استعلامات الصيانة الدورية", callback_data=f"maintenance_{user_id}")],
         [InlineKeyboardButton("📘 استعراض دليل المالك", callback_data=f"manual_{user_id}")],
         [InlineKeyboardButton("🛠️ المتاجر ومراكز الخدمة", callback_data=f"service_{user_id}")],
-        [InlineKeyboardButton("🆕 قريبا شراء قطع غيار مباشر ", callback_data=f"coming_{user_id}")],
+        InlineKeyboardButton("🛒 سوق قطع الغيار", callback_data=f"coming_{user_id}")
         [InlineKeyboardButton("🔧 الأعطال الشائعة وحلولها", callback_data=f"faults_{user_id}")],
         [InlineKeyboardButton("✉️ مركز الدعم الفني والاستفسارات", callback_data=f"suggestion_{user_id}")],
         # ✅ زر واحد فقط: إحصائيات + تقييم
@@ -7334,6 +7334,7 @@ async def cmd_broadcast_update(update: Update, context: ContextTypes.DEFAULT_TYP
 try:
     application.add_handler(CommandHandler("broadcast_update", cmd_broadcast_update))
 except Exception as _e:
+
 
 
     logging.warning(f"[init] تعذر تسجيل broadcast_update: {_e}")

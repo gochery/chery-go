@@ -1300,12 +1300,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ✅ اختصار شاشة الترحيب (اسم + سطرين فقط)
         full_caption = (
             f"`👤 {user_name}`\n"
-            "✨ مرحبًا بك في نظام الصيانة والدعم الفني GO\n"
+            "✨ مرحبًا بك في نظام الصيانة والدعم الفني GO ومنصة PP لقطع الغيار\n"
         )
 
         bot_username = context.bot.username
         link = f"https://t.me/{bot_username}?start=go"
-        keyboard = [[InlineKeyboardButton("🚀 ابدأ الآن", url=link)]]
+        keyboard = [[InlineKeyboardButton("🚀 ابدأ الخدمة الآن", url=link)]]
 
         try:
             if os.path.exists(video_path):
@@ -7321,6 +7321,7 @@ async def cmd_broadcast_update(update: Update, context: ContextTypes.DEFAULT_TYP
 try:
     application.add_handler(CommandHandler("broadcast_update", cmd_broadcast_update))
 except Exception as _e:
+
 
 
     logging.warning(f"[init] تعذر تسجيل broadcast_update: {_e}")

@@ -4369,7 +4369,7 @@ async def send_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # ✳️ الحالة العادية: عرض تكلفة الصيانة
         caption = (
             f"`🧑‍💻 استعلام خاص بـ {user_name}`\n"
-            f"`📅 آخر تحديث للأسعار: شهر اكتوبر / 2025`\n"
+            f"`📅 آخر تحديث للأسعار: شهر يونيو / 2026`\n"
             f"🚗 نوع السيارة: {car_type}\n"
             f"📏 المسافة: {km_service} كم\n"
             f"💰 تكلفة الصيانة: {cost} ريال\n"

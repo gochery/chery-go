@@ -32,7 +32,7 @@ from telegram.ext import (
 
 suggestion_records = {}  # جميع اقتراحات المستخدمين
 SUGGESTION_TICKET_COUNTER = 0  # عداد تذاكر مركز الدعم الفني (يزيد مع كل استفسار جديد)
-SUGGESTION_REPLIES: dict[str, str] = {}
+SUGGESTION_REPLIES: dict[str, str] = {} 
 
 team_threads: dict[int, dict] = {}  # نقاشات فريق GO الداخلية
 TEAM_THREAD_COUNTER = 0
@@ -41,17 +41,14 @@ GLOBAL_GO_COUNTER = 0
 
 SUPPORT_LOCK_TTL_MIN = 10  # مدة القفل بالدقائق
 
-
 def _now_dt():
     return datetime.now()
-
 
 def _parse_dt(val):
     try:
         return datetime.fromisoformat(val)
     except Exception:
         return None
-
 
 def _lock_expired(record):
     locked_at = record.get("locked_at")
@@ -61,7 +58,6 @@ def _lock_expired(record):
     if not dt:
         return True
     return (_now_dt() - dt) > timedelta(minutes=SUPPORT_LOCK_TTL_MIN)
-
 
 def lock_ticket(record, admin_id, admin_name):
     """
@@ -85,38 +81,33 @@ def lock_ticket(record, admin_id, admin_name):
     record["locked_at"] = _now_dt().isoformat()
     return True, ""
 
-
 def unlock_ticket(record):
     record.pop("locked_by_id", None)
     record.pop("locked_by_name", None)
     record.pop("locked_at", None)
-
 
 # -----------------------------------------------------------
 # 2) نظام السجلات
 # -----------------------------------------------------------
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", force=True
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    force=True
 )
 
 # -----------------------------------------------------------
 # 3) تصحيح set_application داخل JobQueue لإزالة weakref
 # -----------------------------------------------------------
 
-
 # دالة الكتابة في الخلفية
 def write_excel_background(path, df, sheet_name):
-    with pd.ExcelWriter(
-        path, engine="openpyxl", mode="a", if_sheet_exists="replace"
-    ) as writer:
+    with pd.ExcelWriter(path, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
         df.to_excel(writer, sheet_name=sheet_name, index=False)
-
 
 def _patched_set_application(self, application):
     """استبدال weakref بـ lambda للحفاظ على التطبيق دائماً."""
     self._application = lambda: application
-
 
 tg_jobqueue.JobQueue.set_application = _patched_set_application
 
@@ -163,23 +154,16 @@ PP_DIRECT_ENABLED = _raw_pp_enabled in ("1", "true", "yes", "on")
 # ✅ target bot username (without @)
 PP_BOT_USERNAME = (os.getenv("PP_BOT_USERNAME") or "").strip().lstrip("@")
 
-
-async def create_excel_backup(
-    reason: str = "manual",
-    context: Optional[ContextTypes.DEFAULT_TYPE] = None,
-    notify_chat_id: Optional[int] = None,
-):
+async def create_excel_backup(reason: str = "manual", context: Optional[ContextTypes.DEFAULT_TYPE] = None, notify_chat_id: Optional[int] = None):
     """إنشاء نسخة احتياطية من ملف bot_data.xlsx داخل مجلد backups"""
     src = Path("bot_data.xlsx")
     if not src.exists():
-        logging.warning(
-            "[BACKUP] ⚠️ ملف bot_data.xlsx غير موجود – لا يمكن إنشاء نسخة احتياطية."
-        )
+        logging.warning("[BACKUP] ⚠️ ملف bot_data.xlsx غير موجود – لا يمكن إنشاء نسخة احتياطية.")
         if context and notify_chat_id:
             try:
                 await context.bot.send_message(
                     chat_id=notify_chat_id,
-                    text="⚠️ لا يوجد ملف بيانات bot_data.xlsx حالياً، لم يتم إنشاء نسخة احتياطية.",
+                    text="⚠️ لا يوجد ملف بيانات bot_data.xlsx حالياً، لم يتم إنشاء نسخة احتياطية."
                 )
             except Exception:
                 pass
@@ -202,7 +186,7 @@ async def create_excel_backup(
             try:
                 await context.bot.send_message(
                     chat_id=notify_chat_id,
-                    text="✅ تم إنشاء نسخة احتياطية لبيانات النظام بنجاح.",
+                    text="✅ تم إنشاء نسخة احتياطية لبيانات النظام بنجاح."
                 )
             except Exception:
                 pass
@@ -221,23 +205,20 @@ async def create_excel_backup(
                         await context.bot.send_document(
                             chat_id=backup_chat_id,
                             document=doc,
-                            caption=f"📦 نسخة احتياطية ({reason}) من بيانات نظام GO",
+                            caption=f"📦 نسخة احتياطية ({reason}) من بيانات نظام GO"
                         )
                 except Exception as e2:
-                    logging.error(
-                        f"[BACKUP] ❌ فشل إرسال النسخة الاحتياطية إلى قناة النسخ: {e2}"
-                    )
+                    logging.error(f"[BACKUP] ❌ فشل إرسال النسخة الاحتياطية إلى قناة النسخ: {e2}")
     except Exception as e:
         logging.error(f"[BACKUP] ❌ فشل إنشاء النسخة الاحتياطية: {e}")
         if context and notify_chat_id:
             try:
                 await context.bot.send_message(
                     chat_id=notify_chat_id,
-                    text="❌ حدث خطأ أثناء إنشاء النسخة الاحتياطية.",
+                    text="❌ حدث خطأ أثناء إنشاء النسخة الاحتياطية."
                 )
             except Exception:
                 pass
-
 
 async def daily_backup_job(context: ContextTypes.DEFAULT_TYPE):
     """نسخ احتياطي يومي تلقائي لملف الإكسل"""
@@ -246,6 +227,7 @@ async def daily_backup_job(context: ContextTypes.DEFAULT_TYPE):
         await create_excel_backup(reason="daily", context=context, notify_chat_id=None)
     except Exception as e:
         logging.error(f"[BACKUP] ❌ خطأ أثناء تنفيذ النسخ الاحتياطي اليومي: {e}")
+
 
 
 # إصلاح الخطأ: تعريف initial_branches قبل استخدامها
@@ -281,15 +263,15 @@ STATS_CACHE_TTL = 60  # ثانية
 
 # إحصائيات ثابتة (تعويض سنتين تشغيل)
 BASE_STATS = {
-    "users": 21995,
+    "users": 22992,
     "groups": 14,
-    "go_uses": 161740,
+    "go_uses": 171950,
 }
 
 # تعويض تقييمات سنتين تشغيل (إحصائيات فقط، لا تُكتب في الإكسل)
 BASE_RATINGS = {
-    "count": 9370,  # 👈 عدّل هذا الرقم: عدد المقيمين الافتراضي القديم
-    "avg": 5.0,  # 👈 متوسط التقييم (من 5)
+    "count": 9302,   # 👈 عدّل هذا الرقم: عدد المقيمين الافتراضي القديم
+     "avg": 5.0,     # 👈 متوسط التقييم (من 5)
 }
 
 # قائمة السيارات لخدمة قطع الغيار الاستهلاكية
@@ -310,7 +292,7 @@ BRAND_CONTACTS = {
     "EXEED": {
         "companies": [
             {"name": "سنابل الحديثة", "phone": "8002440228"},
-            {"name": "التراث العربي للسيارات", "phone": "920035590"},
+            {"name": "التراث العربي للسيارات", "phone": "920035590"}
         ]
     },
     "JETOUR": {
@@ -354,7 +336,6 @@ BACKUPS_DIR = Path("backups")
 # =============================
 # Helpers: تحميل الإكسل مع النسخ الاحتياطية
 # =============================
-
 
 def _load_excel_from_path(path: Path) -> dict:
     """تحميل ملف إكسل واحد وإرجاع كل الشيتات في dict."""
@@ -402,7 +383,6 @@ def _load_excel_with_backup() -> dict:
     # 3) إذا كل شيء فشل
     raise RuntimeError("فشل تحميل بيانات الإكسل من الملف الأساسي أو النسخ الاحتياطية.")
 
-
 # ================================================================
 #  تحميل بيانات Excel مع دعم النسخ الاحتياطية (نسخة منقّحة ونهائية)
 # ================================================================
@@ -411,19 +391,17 @@ try:
     excel_data = _load_excel_with_backup()
 
     # 2) قراءة الشيتات بأمان
-    df_admins = excel_data.get("managers", pd.DataFrame(columns=["manager_id"]))
-    df_replies = excel_data.get(
-        "suggestion_replies", pd.DataFrame(columns=["key", "reply"])
-    )
-    df_branches = excel_data.get("branches", pd.DataFrame())
-    df_maintenance = excel_data.get("maintenance", pd.DataFrame())
-    df_parts = excel_data.get("parts", pd.DataFrame())
-    df_manual = excel_data.get("manual", pd.DataFrame())
-    df_independent = excel_data.get("independent", pd.DataFrame())
-    df_faults = excel_data.get("faults", pd.DataFrame())
-    df_group_logs = excel_data.get(
+    df_admins      = excel_data.get("managers",            pd.DataFrame(columns=["manager_id"]))
+    df_replies     = excel_data.get("suggestion_replies",  pd.DataFrame(columns=["key", "reply"]))
+    df_branches    = excel_data.get("branches",            pd.DataFrame())
+    df_maintenance = excel_data.get("maintenance",         pd.DataFrame())
+    df_parts       = excel_data.get("parts",               pd.DataFrame())
+    df_manual      = excel_data.get("manual",              pd.DataFrame())
+    df_independent = excel_data.get("independent",         pd.DataFrame())
+    df_faults      = excel_data.get("faults",              pd.DataFrame())
+    df_group_logs  = excel_data.get(
         "group_logs",
-        pd.DataFrame(columns=["chat_id", "title", "type", "last_seen_utc"]),
+        pd.DataFrame(columns=["chat_id", "title", "type", "last_seen_utc"])
     )
 
     # 3) تحميل المجموعات المسجلة مسبقاً في BROADCAST_GROUPS
@@ -432,7 +410,7 @@ try:
     if not df_group_logs.empty:
         for _, row in df_group_logs.iterrows():
             try:
-                gid = int(row.get("chat_id"))
+                gid   = int(row.get("chat_id"))
                 title = str(row.get("title", "غير معروف"))
                 gtype = str(row.get("type", "group"))
                 BROADCAST_GROUPS[gid] = {"title": title, "type": gtype}
@@ -444,7 +422,11 @@ try:
     # 4) استخراج قائمة السيارات الفريدة للقطع الاستهلاكية
     try:
         unique_cars = sorted(
-            df_parts["Station No"].dropna().astype(str).unique().tolist()
+            df_parts["Station No"]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
         )
     except Exception as e2:
         logging.error(f"[DATA] فشل بناء unique_cars: {e2}")
@@ -482,7 +464,8 @@ try:
     # 6 مكرر) تحميل عداد GO من شيت bot_stats (لو موجود)
     try:
         df_bot_stats_init = excel_data.get(
-            "bot_stats", pd.DataFrame(columns=["key", "value"])
+            "bot_stats",
+            pd.DataFrame(columns=["key", "value"])
         )
 
         if (
@@ -501,9 +484,7 @@ try:
         else:
             GLOBAL_GO_COUNTER = 0
 
-        logging.info(
-            f"[GO STATS INIT] تم تحميل GLOBAL_GO_COUNTER = {GLOBAL_GO_COUNTER} من bot_stats"
-        )
+        logging.info(f"[GO STATS INIT] تم تحميل GLOBAL_GO_COUNTER = {GLOBAL_GO_COUNTER} من bot_stats")
 
     except Exception as e:
         logging.warning(f"[GO STATS INIT] فشل تحميل عداد GO من bot_stats: {e}")
@@ -525,11 +506,7 @@ try:
         AUTHORIZED_USERS = []
 
     # 8) الردود الجاهزة SUGGESTION_REPLIES
-    if (
-        not df_replies.empty
-        and "key" in df_replies.columns
-        and "reply" in df_replies.columns
-    ):
+    if not df_replies.empty and "key" in df_replies.columns and "reply" in df_replies.columns:
         SUGGESTION_REPLIES = dict(zip(df_replies["key"], df_replies["reply"]))
     else:
         SUGGESTION_REPLIES = {}
@@ -555,29 +532,27 @@ try:
 
 except Exception as e:
     # 🔥 فشل كامل في التحميل (الملف والباك أب)
-    logging.error(
-        f"[DATA LOAD ERROR] ⚠️ فشل قراءة بيانات الإكسل (الأساسي + النسخ الاحتياطية): {e}"
-    )
+    logging.error(f"[DATA LOAD ERROR] ⚠️ فشل قراءة بيانات الإكسل (الأساسي + النسخ الاحتياطية): {e}")
 
     # نعطي قيم آمنة حتى لا يتعطّل البوت
-    df_admins = pd.DataFrame(columns=["manager_id"])
-    df_replies = pd.DataFrame(columns=["key", "reply"])
-    df_branches = pd.DataFrame()
+    df_admins      = pd.DataFrame(columns=["manager_id"])
+    df_replies     = pd.DataFrame(columns=["key", "reply"])
+    df_branches    = pd.DataFrame()
     df_maintenance = pd.DataFrame()
-    df_parts = pd.DataFrame()
-    df_manual = pd.DataFrame()
+    df_parts       = pd.DataFrame()
+    df_manual      = pd.DataFrame()
     df_independent = pd.DataFrame()
-    df_faults = pd.DataFrame()
-    df_group_logs = pd.DataFrame(columns=["chat_id", "title", "type", "last_seen_utc"])
+    df_faults      = pd.DataFrame()
+    df_group_logs  = pd.DataFrame(columns=["chat_id", "title", "type", "last_seen_utc"])
 
-    unique_cars = []
-    ALL_USERS = set()
-    RATED_USERS = set()
+    unique_cars      = []
+    ALL_USERS        = set()
+    RATED_USERS      = set()
     AUTHORIZED_USERS = []
     BROADCAST_GROUPS = {}
 
     SUGGESTION_REPLIES = {}
-    initial_branches = []
+    initial_branches   = []
     application.bot_data["branches"] = initial_branches
 
 
@@ -650,11 +625,7 @@ async def show_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if real_groups == 0:
             try:
                 mem_df = globals().get("df_group_logs")
-                if (
-                    mem_df is not None
-                    and not mem_df.empty
-                    and "chat_id" in mem_df.columns
-                ):
+                if mem_df is not None and not mem_df.empty and "chat_id" in mem_df.columns:
                     real_groups = mem_df["chat_id"].nunique()
             except Exception:
                 pass
@@ -694,12 +665,8 @@ async def show_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 👇 التحقق هل هذا المستخدم قيّم سابقًا من الإكسل
         if not df_ratings.empty and "user_id" in df_ratings.columns:
             try:
-                df_ratings["user_id"] = pd.to_numeric(
-                    df_ratings["user_id"], errors="coerce"
-                )
-                already_rated = (
-                    int(user_id) in df_ratings["user_id"].dropna().astype(int).tolist()
-                )
+                df_ratings["user_id"] = pd.to_numeric(df_ratings["user_id"], errors="coerce")
+                already_rated = int(user_id) in df_ratings["user_id"].dropna().astype(int).tolist()
             except Exception:
                 already_rated = False
 
@@ -713,8 +680,8 @@ async def show_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
         total_ratings = base_count + real_count
         if total_ratings > 0:
             combined_avg = (
-                base_avg * base_count + real_avg * real_count
-            ) / total_ratings
+                (base_avg * base_count + real_avg * real_count) / total_ratings
+            )
         else:
             combined_avg = 0.0
 
@@ -725,8 +692,8 @@ async def show_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
             stars = "⭐" * min(5, int(round(combined_avg)))
             rating_info = (
                 "⭐ التقييمات:\n"
-                f'عدد المقيمين: <a href="tg://user?id=0">{total_ratings_display}</a>\n'
-                f'متوسط التقييم: <a href="tg://user?id=0">{combined_avg}</a> من (5) {stars}'
+                f"عدد المقيمين: <a href=\"tg://user?id=0\">{total_ratings_display}</a>\n"
+                f"متوسط التقييم: <a href=\"tg://user?id=0\">{combined_avg}</a> من (5) {stars}"
             )
     except Exception:
         pass
@@ -747,9 +714,9 @@ async def show_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👤 <i>المستخدم:</i> <code><i>{user_name_safe}</i></code>\n"
         f"{user_rating_line}"
         "<b>📌 الملخص العام</b>\n"
-        f'🏡 عدد القروبات المرتبطة بـ GO داخل النظام: <a href="tg://user?id=0">{total_groups}</a>\n'
-        f'👥 عدد مستخدمين GO داخل القروبات: <a href="tg://user?id=0">{total_users}</a>\n'
-        f'🚀 عدد مرات استدعاء GO داخل القروبات: <a href="tg://user?id=0">{total_go}</a>\n\n'
+        f"🏡 عدد القروبات المرتبطة بـ GO داخل النظام: <a href=\"tg://user?id=0\">{total_groups}</a>\n"
+        f"👥 عدد مستخدمين GO داخل القروبات: <a href=\"tg://user?id=0\">{total_users}</a>\n"
+        f"🚀 عدد مرات استدعاء GO داخل القروبات: <a href=\"tg://user?id=0\">{total_go}</a>\n\n"
         f"{rating_info}\n\n"
         "⏳ <code><i>تُحدَّث هذه الأرقام تلقائيًا مع نشاط الاعضاء.</i></code>\n"
         f"<code>{refresh_time} / 🇸🇦</code>\n\n"
@@ -760,47 +727,17 @@ async def show_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # لو قيّم سابقًا → فقط زر الرجوع
     # لو ما قيّم → تظهر أزرار التقييم + الرجوع
     if already_rated:
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "⬅️ الرجوع للقائمة الرئيسية",
-                        callback_data=f"back_main_{user_id}",
-                    )
-                ]
-            ]
-        )
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ الرجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
+        ])
     else:
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "😞 غير راضٍ", callback_data=f"ratingval_1_{user_id}"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "😐 مقبول", callback_data=f"ratingval_2_{user_id}"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "😊 جيد", callback_data=f"ratingval_3_{user_id}"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "😍 ممتاز", callback_data=f"ratingval_4_{user_id}"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "⬅️ الرجوع للقائمة الرئيسية",
-                        callback_data=f"back_main_{user_id}",
-                    )
-                ],
-            ]
-        )
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("😞 غير راضٍ", callback_data=f"ratingval_1_{user_id}")],
+            [InlineKeyboardButton("😐 مقبول", callback_data=f"ratingval_2_{user_id}")],
+            [InlineKeyboardButton("😊 جيد", callback_data=f"ratingval_3_{user_id}")],
+            [InlineKeyboardButton("😍 ممتاز", callback_data=f"ratingval_4_{user_id}")],
+            [InlineKeyboardButton("⬅️ الرجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
+        ])
 
     try:
         await query.message.edit_text(
@@ -815,11 +752,8 @@ async def show_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         raise
 
-
 # ✅ 1. تعريف دالة تنظيف الجلسات
-async def cleanup_old_sessions(
-    context: ContextTypes.DEFAULT_TYPE, max_age_minutes: int = 15
-):
+async def cleanup_old_sessions(context: ContextTypes.DEFAULT_TYPE, max_age_minutes: int = 15):
     """🧹 يحذف الجلسات القديمة من user_sessions لتقليل الضغط"""
     now = datetime.now(timezone.utc)
     removed = 0
@@ -827,8 +761,7 @@ async def cleanup_old_sessions(
     for user_id in list(user_sessions):
         original_count = len(user_sessions[user_id])
         user_sessions[user_id] = [
-            msg
-            for msg in user_sessions[user_id]
+            msg for msg in user_sessions[user_id]
             if (now - msg["timestamp"]).total_seconds() < max_age_minutes * 60
         ]
         if not user_sessions[user_id]:
@@ -837,7 +770,6 @@ async def cleanup_old_sessions(
 
     logging.info(f"[CLEANUP] 🧹 تم تنظيف {removed} رسالة من الجلسات القديمة.")
     return removed
-
 
 # ================================================================
 #  ⚙️ عدادات الإحصائيات: تحديث الذاكرة + حفظ فعلي في Excel
@@ -880,12 +812,9 @@ async def update_all_users_log_async():
             await loop.run_in_executor(None, _update_all_users_log_sync)
     except Exception as e:
         logging.error(f"[SAVE USERS] ❌ خطأ في تشغيل حفظ all_users_log في الخلفية: {e}")
-
-
+        
 # 📌 تحديث group_logs: تعديل الداتا في الذاكرة + حفظ مباشر في Excel
-async def update_group_logs(
-    chat_id: int, chat_title: str, context: ContextTypes.DEFAULT_TYPE
-):
+async def update_group_logs(chat_id: int, chat_title: str, context: ContextTypes.DEFAULT_TYPE):
     """
     تسجيل المجموعات في شيت group_logs + تحديث BROADCAST_GROUPS
     بدون تجميد البوت، وبشكل آمن مع النسخ الاحتياطية.
@@ -919,18 +848,21 @@ async def update_group_logs(
             "last_seen_utc": now_iso,
         }
         df_group_logs = pd.concat(
-            [df_group_logs, pd.DataFrame([new_row])], ignore_index=True
+            [df_group_logs, pd.DataFrame([new_row])],
+            ignore_index=True
         )
 
     # حفظ للملف بدون تجميد البوت
     try:
         async with EXCEL_LOCK:
             await asyncio.to_thread(
-                write_excel_background, "bot_data.xlsx", df_group_logs, "group_logs"
+                write_excel_background,
+                "bot_data.xlsx",
+                df_group_logs,
+                "group_logs"
             )
     except Exception as e:
         logging.error(f"[GROUP_LOGS] فشل الحفظ في الخلفية: {e}")
-
 
 async def register_user(user_id: int):
     """تسجيل مستخدم جديد في شيت all_users_log بشكل آمن وسريع"""
@@ -947,9 +879,8 @@ async def register_user(user_id: int):
             write_excel_background,
             "bot_data.xlsx",
             pd.DataFrame(sorted(ALL_USERS), columns=["user_id"]),
-            "all_users_log",
+            "all_users_log"
         )
-
 
 def _update_go_stats_sync():
     """
@@ -1004,9 +935,7 @@ def _update_go_stats_sync():
         ) as writer:
             df_bot_stats.to_excel(writer, sheet_name="bot_stats", index=False)
 
-        logging.info(
-            f"[GO STATS] ✅ تم حفظ total_go_uses = {GLOBAL_GO_COUNTER} في bot_stats"
-        )
+        logging.info(f"[GO STATS] ✅ تم حفظ total_go_uses = {GLOBAL_GO_COUNTER} في bot_stats")
 
     except Exception as e:
         logging.error(f"[GO STATS] ❌ فشل حفظ عداد GO في bot_stats: {e}")
@@ -1031,18 +960,15 @@ async def update_go_stats_async():
 # ================================================================
 HEALTH_BUFFER = []
 
-
 def _write_health_log_sync():
     global HEALTH_BUFFER, ALL_USERS, GLOBAL_GO_COUNTER
     try:
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
-        HEALTH_BUFFER.append(
-            {
-                "timestamp": now_saudi.isoformat(timespec="seconds"),
-                "total_users": len(ALL_USERS),
-                "total_go_uses": GLOBAL_GO_COUNTER,
-            }
-        )
+        HEALTH_BUFFER.append({
+            "timestamp": now_saudi.isoformat(timespec="seconds"),
+            "total_users": len(ALL_USERS),
+            "total_go_uses": GLOBAL_GO_COUNTER,
+        })
         logging.info("[HEALTH] buffered heartbeat")
     except Exception as e:
         logging.error(f"[HEALTH] فشل كتابة health_log في الذاكرة: {e}")
@@ -1054,13 +980,10 @@ async def health_log_job(context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logging.error(f"[HEALTH LOG] خطأ أثناء تحديث health_log في الذاكرة: {e}")
 
-
 # 🔁 جوب بسيط يطلب عنوان الخدمة لإبقاء Render مستيقظ
 async def keepalive_ping(context: ContextTypes.DEFAULT_TYPE):
     try:
-        base_url = (
-            os.getenv("RENDER_EXTERNAL_URL") or "https://chery-go-8a2z.onrender.com"
-        )
+        base_url = os.getenv("RENDER_EXTERNAL_URL") or "https://chery-go-8a2z.onrender.com"
 
         # لو أحد كتبها بدون بروتوكول
         if not base_url.startswith("http"):
@@ -1076,28 +999,18 @@ async def keepalive_ping(context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logging.error(f"[KEEPALIVE] ❌ فشل Ping الخدمة: {e}")
 
-
-def register_message(
-    user_id, message_id, chat_id=None, context=None, skip_delete=False
-):
+def register_message(user_id, message_id, chat_id=None, context=None, skip_delete=False):
     if user_id not in user_sessions:
         user_sessions[user_id] = []
 
-    user_sessions[user_id].append(
-        {
-            "message_id": message_id,
-            "chat_id": chat_id or user_id,
-            "timestamp": datetime.now(timezone.utc),
-        }
-    )
+    user_sessions[user_id].append({
+        "message_id": message_id,
+        "chat_id": chat_id or user_id,
+        "timestamp": datetime.now(timezone.utc)
+    })
 
     # ✅ لا تقم بالحذف إذا skip_delete=True
-    if (
-        not skip_delete
-        and context
-        and hasattr(context, "job_queue")
-        and context.job_queue
-    ):
+    if not skip_delete and context and hasattr(context, "job_queue") and context.job_queue:
         try:
             context.job_queue.run_once(
                 schedule_delete_message,
@@ -1105,14 +1018,11 @@ def register_message(
                 data={
                     "user_id": user_id,
                     "message_id": message_id,
-                    "chat_id": chat_id or user_id,
-                },
+                    "chat_id": chat_id or user_id
+                }
             )
         except Exception as e:
-            logging.warning(
-                f"[JOB ERROR] فشل في جدولة الحذف التلقائي للرسالة {message_id}: {e}"
-            )
-
+            logging.warning(f"[JOB ERROR] فشل في جدولة الحذف التلقائي للرسالة {message_id}: {e}")
 
 async def schedule_delete_message(context: ContextTypes.DEFAULT_TYPE):
     job_data = context.job.data
@@ -1124,16 +1034,11 @@ async def schedule_delete_message(context: ContextTypes.DEFAULT_TYPE):
         await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
         logging.info(f"[DELETE] 🗑️ تم حذف الرسالة رقم {message_id} للمستخدم {user_id}")
     except Exception:
-        logging.warning(
-            f"⚠️ الرسالة {message_id} للمستخدم {user_id} ربما حُذفت مسبقًا أو غير موجودة."
-        )
-
+        logging.warning(f"⚠️ الرسالة {message_id} للمستخدم {user_id} ربما حُذفت مسبقًا أو غير موجودة.")
 
 async def reset_manual_search_state(context: ContextTypes.DEFAULT_TYPE):
     """تصـفير عداد البحث اليدوي (search_attempts) بعد 15 دقيقة من آخر استعلام"""
-    job_data = (
-        getattr(context, "job", None).data if getattr(context, "job", None) else {}
-    )
+    job_data = getattr(context, "job", None).data if getattr(context, "job", None) else {}
     user_id = job_data.get("user_id")
     if user_id is None:
         return
@@ -1157,7 +1062,6 @@ async def reset_manual_search_state(context: ContextTypes.DEFAULT_TYPE):
 
     logging.info(f"[CLEANUP] ✅ تصفير عداد البحث اليدوي للمستخدم {user_id}")
 
-
 async def log_event(update: Update, message: str, level="info"):
     user = update.effective_user
     chat = update.effective_chat
@@ -1179,28 +1083,18 @@ async def log_event(update: Update, message: str, level="info"):
     # 👇 هذا يضمن ظهور الرسالة في Runtime Logs حتى لو إعدادات اللوق تغيّرت
     print(log_msg)
 
-
 def get_part_price(row: pd.Series) -> Optional[str]:
     """
     ترجع السعر كنص من الصف اذا كان العمود موجود وغير فارغ
     ندعم عدة أسماء أعمدة محتملة بما فيها Approx Price
     """
-    candidate_cols = [
-        "Approx Price",
-        "Price",
-        "price",
-        "السعر",
-        "التكلفة",
-        "Cost",
-        "cost",
-    ]
+    candidate_cols = ["Approx Price", "Price", "price", "السعر", "التكلفة", "Cost", "cost"]
     for col in candidate_cols:
         if col in row:
             value = str(row[col]).strip()
             if value and value.lower() != "nan":
                 return value
     return None
-
 
 def make_back_button(target: str, user_id: int) -> InlineKeyboardButton:
     """
@@ -1240,17 +1134,11 @@ async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             # لو الرسالة نص نعدلها، لو صورة / ملف نرسل رسالة جديدة
             if query.message and query.message.text:
-                msg = await query.edit_message_text(
-                    text_main, reply_markup=main_menu_markup
-                )
+                msg = await query.edit_message_text(text_main, reply_markup=main_menu_markup)
             else:
-                msg = await query.message.reply_text(
-                    text_main, reply_markup=main_menu_markup
-                )
+                msg = await query.message.reply_text(text_main, reply_markup=main_menu_markup)
         except Exception:
-            msg = await query.message.reply_text(
-                text_main, reply_markup=main_menu_markup
-            )
+            msg = await query.message.reply_text(text_main, reply_markup=main_menu_markup)
 
         register_message(user_id, msg.message_id, query.message.chat_id, context)
         await log_event(update, "⬅️ رجوع الى القائمة الرئيسية (نظام back:main)")
@@ -1259,70 +1147,30 @@ async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # باقي الأهداف لاحقاً
     await query.answer("هذا زر رجوع لم يتم تفعيله بعد.", show_alert=True)
 
-
 def build_main_menu_keyboard(user_id: int) -> InlineKeyboardMarkup:
     keyboard = [
-        [
-            InlineKeyboardButton(
-                "🔧 استعلامات قطع الغيار", callback_data=f"parts_{user_id}"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🚗 استعلامات الصيانة الدورية", callback_data=f"maintenance_{user_id}"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "📘 استعراض دليل المالك", callback_data=f"manual_{user_id}"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🛠️ المتاجر ومراكز الخدمة", callback_data=f"service_{user_id}"
-            )
-        ],
+        [InlineKeyboardButton("🔧 استعلامات قطع الغيار", callback_data=f"parts_{user_id}")],
+        [InlineKeyboardButton("🚗 استعلامات الصيانة الدورية", callback_data=f"maintenance_{user_id}")],
+        [InlineKeyboardButton("📘 استعراض دليل المالك", callback_data=f"manual_{user_id}")],
+        [InlineKeyboardButton("🛠️ المتاجر ومراكز الخدمة", callback_data=f"service_{user_id}")],
+
         # ✅ هنا مكان زر السوق (كما طلبت بالضبط)
-        [
-            InlineKeyboardButton(
-                "🛒  سوق  قطع  غيار pp", callback_data=f"coming_{user_id}"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🔧 الأعطال الشائعة وحلولها", callback_data=f"faults_{user_id}"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "✉️ مركز الدعم الفني والاستفسارات", callback_data=f"suggestion_{user_id}"
-            )
-        ],
+        [InlineKeyboardButton("🛒  سوق  قطع  غيار pp", callback_data=f"coming_{user_id}")],
+
+        [InlineKeyboardButton("🔧 الأعطال الشائعة وحلولها", callback_data=f"faults_{user_id}")],
+        [InlineKeyboardButton("✉️ مركز الدعم الفني والاستفسارات", callback_data=f"suggestion_{user_id}")],
+
         # زر الإحصائيات والتقييم
-        [
-            InlineKeyboardButton(
-                "📊 إحصائيات GO والتقييم", callback_data=f"rate_{user_id}"
-            )
-        ],
+        [InlineKeyboardButton("📊 إحصائيات GO والتقييم", callback_data=f"rate_{user_id}")]
     ]
 
     # مميزات المشرفين
     if user_id in AUTHORIZED_USERS:
-        keyboard.insert(
-            -1, [InlineKeyboardButton("📡 إرسال توصية فنية", callback_data="send_reco")]
-        )
-        keyboard.insert(
-            -1,
-            [
-                InlineKeyboardButton(
-                    "🟦 دعوة فريق GO للنقاش", callback_data=f"team_main_{user_id}"
-                )
-            ],
-        )
+        keyboard.insert(-1, [InlineKeyboardButton("📡 إرسال توصية فنية", callback_data="send_reco")])
+        keyboard.insert(-1, [InlineKeyboardButton("🟦 دعوة فريق GO للنقاش", callback_data=f"team_main_{user_id}")])
 
     return InlineKeyboardMarkup(keyboard)
-
-
+       
 # ✅ دالة البدء async
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.bot_data.get("maintenance_mode"):
@@ -1335,51 +1183,41 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "برنامج <b>GO</b> قيد التحديث والصيانة حالياً.\n"
                     "🔄 الرجاء المحاولة لاحقاً."
                 ),
-                parse_mode="HTML",
+                parse_mode="HTML"
             )
         context.job_queue.run_once(
-            lambda c: c.bot.delete_message(
-                chat_id=msg.chat_id, message_id=msg.message_id
-            ),
-            when=30,
+            lambda c: c.bot.delete_message(chat_id=msg.chat_id, message_id=msg.message_id),
+            when=30
         )
         return
 
     user = update.effective_user
     chat = update.effective_chat
-    chat_id = chat.id
     user_id = user.id
+    chat_id = chat.id
     user_name = user.full_name
 
     # حذف رسالة /start أو go الأصلية حتى لا تتكرر
     if update.message:
         try:
-            await context.bot.delete_message(
-                chat_id=chat_id, message_id=update.message.message_id
-            )
+            await context.bot.delete_message(chat_id=chat_id, message_id=update.message.message_id)
         except Exception:
             pass
 
     # ✅ منع المتطفلين من الدخول من الخاص مباشرة بدون جلسة من المجموعة
-    if (
-        chat.type == "private"
-        and not context.user_data.get(user_id, {}).get("session_valid")
-        and user_id not in AUTHORIZED_USERS
-    ):
+    if chat.type == "private" and not context.user_data.get(user_id, {}).get("session_valid") and user_id not in AUTHORIZED_USERS:
         text = update.message.text.strip().lower() if update.message else ""
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=15)).strftime("%I:%M %p")
         user_block = f"🧑‍🏫 مرحبا {user_name}"
-        delete_block = (
-            f"⏳ سيتم حذف هذا التنبيه تلقائيًا خلال 15 دقيقة ({delete_time} / 🇸🇦)"
-        )
+        delete_block = f"⏳ سيتم حذف هذا التنبيه تلقائيًا خلال 15 دقيقة ({delete_time} / 🇸🇦)"
 
         if text in ["/start", "start", "go", "/go"] and "start=go" not in text:
             alert_message = (
-                "📣 يسعدنا اهتمامك بخدمات *نظام الصيانة GO*!\n\n"
-                "❌ لا يمكنك بدء الخدمة مباشرة من الخاص.\n"
-                "🔐 حفاظًا على الخصوصية، يرجى العودة إلى مجموعتك أو الانضمام إلى المجموعة الرئيسية أدناه وكتابة الأمر (go) هناك.\n\n"
-                "[👥 اضغط هنا للانضمام إلى مجموعة CHERY KSA ](https://t.me/CHERYKSA_group)"
+               "📣 يسعدنا اهتمامك بخدمات *نظام الصيانة GO*!\n\n"
+               "❌ لا يمكنك بدء الخدمة مباشرة من الخاص.\n"
+               "🔐 حفاظًا على الخصوصية، يرجى العودة إلى مجموعتك أو الانضمام إلى المجموعة الرئيسية أدناه وكتابة الأمر (go) هناك.\n\n"
+               "[👥 اضغط هنا للانضمام إلى مجموعة CHERY KSA ](https://t.me/CHERYKSA_group)"
             )
         else:
             alert_message = (
@@ -1391,17 +1229,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await update.message.reply_text(
             f"{user_block}\n\n{alert_message}\n\n{delete_block}",
             parse_mode=constants.ParseMode.MARKDOWN,
-            disable_web_page_preview=True,
+            disable_web_page_preview=True
         )
         register_message(user_id, msg.message_id, chat_id, context)
         return
 
     # تنظيف مفاتيح image_opened_ لمنع التعارض في فتح الصور القديمة
-    keys_to_remove = [
-        key
-        for key in context.user_data.get(user_id, {})
-        if key.startswith("image_opened_")
-    ]
+    keys_to_remove = [key for key in context.user_data.get(user_id, {}) if key.startswith("image_opened_")]
     for key in keys_to_remove:
         del context.user_data[user_id][key]
 
@@ -1437,33 +1271,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         group_id = bot_data.get("group_id", user_id)
         previous_user_name = bot_data.get("user_name", user_name)
 
-    context.user_data[user_id].update(
-        {
-            "action": None,
-            "compose_text": None,
-            "compose_media": None,
-            "compose_mode": None,
-            "group_title": group_title,
-            "group_id": group_id,
-            "user_name": previous_user_name,
-            "final_group_name": group_title,
-            "final_group_id": group_id,
-        }
-    )
+    context.user_data[user_id].update({
+        "action": None,
+        "compose_text": None,
+        "compose_media": None,
+        "compose_mode": None,
+        "group_title": group_title,
+        "group_id": group_id,
+        "user_name": previous_user_name,
+        "final_group_name": group_title,
+        "final_group_id": group_id
+    })
 
     await log_event(update, "بدأ المستخدم التفاعل مع /go")
 
-    # ✅ إذا النداء من مجموعة: نرسل بانر الترحيب ونخرج
+  # ✅ إذا النداء من مجموعة: نرسل بانر الترحيب ونخرج
     if chat_id < 0:
         context.bot_data[user_id] = {
             "group_title": update.effective_chat.title or "غير معروف",
             "group_id": chat_id,
-            "user_name": user_name,
+            "user_name": user_name
         }
 
         video_path = "GO-CHERY.MP4"
 
-        # ✅ اختصار شاشة الترحيب (اسم + سطرين فقط)
+    # ✅ اختصار شاشة الترحيب (اسم + سطرين فقط)
         full_caption = (
             f"`👤 {user_name}`\n"
             "✨ مرحبًا بك في نظام الصيانة والدعم الفني GO ومنصة PP لقطع الغيار\n"
@@ -1481,39 +1313,37 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         animation=video,
                         caption=full_caption,
                         reply_markup=InlineKeyboardMarkup(keyboard),
-                        parse_mode=constants.ParseMode.MARKDOWN,
+                        parse_mode=constants.ParseMode.MARKDOWN
                     )
             else:
                 msg = await context.bot.send_message(
                     chat_id=chat_id,
                     text=full_caption,
                     reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode=constants.ParseMode.MARKDOWN,
+                    parse_mode=constants.ParseMode.MARKDOWN
                 )
 
-            register_message(user_id, msg.message_id, chat_id, context)
+            register_message(user_id, msg.message_id, chat_id, context, skip_delete=True)
 
             if context and hasattr(context, "job_queue") and context.job_queue:
                 context.job_queue.run_once(
                     schedule_delete_message,
                     timedelta(seconds=90),
-                    data={
-                        "user_id": user_id,
-                        "message_id": msg.message_id,
-                        "chat_id": chat_id,
-                    },
+                    data={"user_id": user_id, "message_id": msg.message_id, "chat_id": chat_id}
                 )
 
         except Exception as e:
             logging.error(f"[GO GROUP] فشل إرسال الترحيب بالفيديو: {e}")
 
-        # ✅ بعد إرسال رسالة الترحيب في المجموعة، حدّث group_logs في الخلفية لاستخدامها في بث التوصيات
+    # ✅ بعد إرسال رسالة الترحيب في المجموعة، حدّث group_logs في الخلفية لاستخدامها في بث التوصيات
         try:
-            asyncio.create_task(update_group_logs(chat.id, chat.title or "", context))
+            asyncio.create_task(update_group_logs(
+                chat.id,
+                chat.title or "",
+                context
+            ))
         except Exception as e:
-            logging.warning(
-                f"[GROUP_LOGS] فشل جدولة تحديث group_logs من start للقروب {chat.id}: {e}"
-            )
+            logging.warning(f"[GROUP_LOGS] فشل جدولة تحديث group_logs من start للقروب {chat.id}: {e}")
 
         return  # ← هذا return يُنهي فرع المجموعة فقط
 
@@ -1535,20 +1365,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "يوفّر لك النظام معلومات دقيقة عن الصيانة، وحلول الأعطال، ودليل الاستخدام، مع دعم فني مباشر عند الحاجة.\n\n"
         "💡 *أنت الآن في جلسة استعلام تفاعلية، وستظهر لك بالأسفل قائمة خدمات GO لاختيار ما يناسبك.*\n\n"
         f"`⏳ سيتم حذف هذه الرسالة خلال 15 دقائق ({delete_time} / 🇸🇦)`",
-        parse_mode=constants.ParseMode.MARKDOWN,
+        parse_mode=constants.ParseMode.MARKDOWN
     )
 
     msg2 = await update.message.reply_text(
-        "فضلاً اختر الخدمة المطلوبة 🛠️ :", reply_markup=keyboard
+        "فضلاً اختر الخدمة المطلوبة 🛠️ :",
+        reply_markup=keyboard
     )
 
     # 🧽 تنظيف مفاتيح الجلسة القديمة
     for key in list(context.user_data[user_id].keys()):
-        if (
-            key.startswith("image_opened_")
-            or key.endswith("_used")
-            or key.endswith("_sent")
-        ):
+        if key.startswith("image_opened_") or key.endswith("_used") or key.endswith("_sent"):
             context.user_data[user_id].pop(key, None)
 
     register_message(user_id, mmsg1.message_id, chat_id, context)
@@ -1574,7 +1401,7 @@ async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.bot_data[user_id] = {
             "group_title": chat.title or "غير معروف",
             "group_id": chat.id,
-            "user_name": user_name,
+            "user_name": user_name
         }
 
         # إنشاء جلسة مؤقتة صالحة لمرة واحدة فقط
@@ -1582,9 +1409,7 @@ async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data[user_id]["session_valid"] = True
 
         # تنظيف مفاتيح الصور القديمة
-        keys_to_remove = [
-            key for key in context.user_data[user_id] if key.startswith("image_opened_")
-        ]
+        keys_to_remove = [key for key in context.user_data[user_id] if key.startswith("image_opened_")]
         for key in keys_to_remove:
             del context.user_data[user_id][key]
 
@@ -1593,23 +1418,21 @@ async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # ✅ بعد إرسال الرسالة للمجموعة، حدّث group_logs في الخلفية بدون ما تأخر الترحيب
         try:
-            asyncio.create_task(update_group_logs(chat.id, chat.title or "", context))
+            asyncio.create_task(update_group_logs(
+                chat.id,
+                chat.title or "",
+                context
+            ))
         except Exception as e:
-            logging.warning(
-                f"[GROUP_LOGS] فشل جدولة تحديث group_logs للقروب {chat.id}: {e}"
-            )
+            logging.warning(f"[GROUP_LOGS] فشل جدولة تحديث group_logs للقروب {chat.id}: {e}")
 
-        logging.info(
-            f"[GO من المجموعة] سجلنا بيانات المجموعة {chat.title} / {chat.id} للمستخدم {user.full_name}"
-        )
+        logging.info(f"[GO من المجموعة] سجلنا بيانات المجموعة {chat.title} / {chat.id} للمستخدم {user.full_name}")
         return
 
     # ✅ من هنا: التعامل في الخاص
-    if (
-        chat.type == "private"
-        and (not context.user_data.get(user_id, {}).get("session_valid"))
-        and user_id not in AUTHORIZED_USERS
-    ):
+    if chat.type == "private" and (
+        not context.user_data.get(user_id, {}).get("session_valid")
+    ) and user_id not in AUTHORIZED_USERS:
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=15)).strftime("%I:%M %p")
 
@@ -1620,24 +1443,21 @@ async def handle_go_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🔐 حفاظًا على الخصوصية، يرجى العودة إلى مجموعتك أو الانضمام إلى المجموعة الرئيسية أدناه وكتابة الأمر (go) هناك.\n\n"
             "[👥 اضغط هنا للانضمام إلى مجموعة CHERY KSA ](https://t.me/CHERYKSA_group)"
         )
-        delete_block = (
-            f"⏳ سيتم حذف هذا التنبيه تلقائيًا خلال 15 دقيقة ({delete_time} / 🇸🇦)"
-        )
+        delete_block = f"⏳ سيتم حذف هذا التنبيه تلقائيًا خلال 15 دقيقة ({delete_time} / 🇸🇦)"
 
         msg = await update.message.reply_text(
             f"{user_block}\n\n{alert_message}\n\n{delete_block}",
             parse_mode=constants.ParseMode.MARKDOWN,
-            disable_web_page_preview=True,
+            disable_web_page_preview=True
         )
         register_message(user_id, msg.message_id, chat_id, context)
         return
 
     # ✅ في الخاص مع جلسة صالحة أو مشرف → نترك دالة start تكمل نفس منطق الترحيب والقائمة
     await start(update, context)
-
-
+    
 async def start_suggestion_session(user_id, context):
-
+    
     # ✅ لو عند المستخدم جلسة سابقة غير مرسلة، نعيد استخدام نفس التذكرة
     user_state = context.user_data.get(user_id, {})
     active_id = user_state.get("active_suggestion_id")
@@ -1708,7 +1528,6 @@ async def start_suggestion_session(user_id, context):
     context.user_data[user_id]["active_suggestion_id"] = suggestion_id
     return suggestion_id
 
-
 async def get_bot_stat_value(key: str, default=0):
     try:
         async with EXCEL_LOCK:
@@ -1730,7 +1549,6 @@ async def get_bot_stat_value(key: str, default=0):
             return default
     except Exception:
         return default
-
 
 async def set_bot_stat_value(key: str, value):
     async with EXCEL_LOCK:
@@ -1756,7 +1574,6 @@ async def set_bot_stat_value(key: str, value):
             ws.cell(row=next_row, column=2).value = value
 
         wb.save("bot_data.xlsx")
-
 
 def _next_team_thread_id() -> int:
     """توليد رقم تسلسلي لكل نقاش داخلي لفريق GO"""
@@ -1791,7 +1608,7 @@ async def handle_team_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             "from": admin_id,
             "name": admin.full_name,
             "text": text,
-            "at": datetime.now(timezone.utc).isoformat(),
+            "at": datetime.now(timezone.utc).isoformat()
         }
     )
 
@@ -1841,11 +1658,7 @@ async def handle_team_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     for aid in AUTHORIZED_USERS:
         try:
             buttons = [
-                [
-                    InlineKeyboardButton(
-                        "✉️ رد على هذا النقاش", callback_data=f"team_reply_{thread_id}"
-                    )
-                ]
+                [InlineKeyboardButton("✉️ رد على هذا النقاش", callback_data=f"team_reply_{thread_id}")]
             ]
             reply_markup = InlineKeyboardMarkup(buttons)
 
@@ -1853,14 +1666,12 @@ async def handle_team_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 chat_id=aid,
                 text=body,
                 parse_mode=constants.ParseMode.MARKDOWN,
-                reply_markup=reply_markup,
+                reply_markup=reply_markup
             )
         except Exception as e:
             logging.warning(f"[TEAM_THREAD] فشل إرسال رد النقاش للمشرف {aid}: {e}")
 
-
 # =========================== توصيات فنية عامة للمجموعات ===========================
-
 
 async def start_recommendation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """بدء وضع كتابة توصية فنية من مشرف"""
@@ -1909,28 +1720,21 @@ async def start_recommendation(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
     # 🔹 زر إلغاء التوصية + الرجوع للقائمة
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "❌ إلغاء التوصية والرجوع للقائمة", callback_data="reco_cancel"
-                )
-            ]
-        ]
-    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("❌ إلغاء التوصية والرجوع للقائمة", callback_data="reco_cancel")]
+    ])
 
     msg = await query.message.reply_text(
-        text, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN
+        text,
+        reply_markup=keyboard,
+        parse_mode=ParseMode.MARKDOWN
     )
 
     # لحذف الرسالة مع الضغط على الزر نحتاج تسجيل رقمها
     context.user_data[admin_id]["reco_message_id"] = msg.message_id
     context.user_data[admin_id]["reco_chat_id"] = msg.chat_id
 
-
-async def handle_recommendation_message(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-):
+async def handle_recommendation_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """استقبال نص/وسائط التوصية من المشرف وتجهيز المعاينة"""
     admin_id = update.effective_user.id
     if admin_id not in AUTHORIZED_USERS:
@@ -1965,9 +1769,7 @@ async def handle_recommendation_message(
         media_item = {"type": "voice", "file_id": message.voice.file_id}
 
     if not incoming_text and not media_item:
-        await message.reply_text(
-            "⚠️ لا يمكن حفظ توصية فارغة اكتب نص التوصية أو أرفق وسائط معها."
-        )
+        await message.reply_text("⚠️ لا يمكن حفظ توصية فارغة اكتب نص التوصية أو أرفق وسائط معها.")
         return
 
     # ✅ دعم أكثر من وسيط: نجمع كل ما يصل من المشرف
@@ -2001,7 +1803,7 @@ async def handle_recommendation_message(
     # 🧾 ملخص الوسائط
     photos_count = sum(1 for m in media_for_preview if m.get("type") == "photo")
     videos_count = sum(1 for m in media_for_preview if m.get("type") == "video")
-    docs_count = sum(1 for m in media_for_preview if m.get("type") == "document")
+    docs_count   = sum(1 for m in media_for_preview if m.get("type") == "document")
     voices_count = sum(1 for m in media_for_preview if m.get("type") == "voice")
 
     media_summary_lines = []
@@ -2019,9 +1821,7 @@ async def handle_recommendation_message(
     else:
         media_summary_lines.append("🧾 *لا توجد وسائط مرفقة حالياً.*")
 
-    text_status = (
-        "نص التوصية موجود" if text_for_preview else "التوصية بدون نص (وسائط فقط)"
-    )
+    text_status = "نص التوصية موجود" if text_for_preview else "التوصية بدون نص (وسائط فقط)"
     media_summary_lines.append(f"✏️ حالة النص: `{text_status}`")
 
     media_summary_block = "\n".join(media_summary_lines)
@@ -2040,24 +1840,16 @@ async def handle_recommendation_message(
     )
 
     # 👇 من هنا ما عاد في بث من المعاينة مباشرة
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "🧾 اختيار المجموعات والتثبيت", callback_data="reco_select"
-                )
-            ],
-            [InlineKeyboardButton("❌ إلغاء التوصية", callback_data="reco_cancel")],
-        ]
-    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🧾 اختيار المجموعات والتثبيت", callback_data="reco_select")],
+        [InlineKeyboardButton("❌ إلغاء التوصية", callback_data="reco_cancel")],
+    ])
 
     # 🧹 حذف معاينة سابقة إن وجدت حتى لا تتكرر
     old_preview_id = ud.get("reco_preview_msg_id")
     if old_preview_id:
         try:
-            await context.bot.delete_message(
-                chat_id=message.chat_id, message_id=old_preview_id
-            )
+            await context.bot.delete_message(chat_id=message.chat_id, message_id=old_preview_id)
         except Exception:
             pass
 
@@ -2070,10 +1862,7 @@ async def handle_recommendation_message(
     # حفظ رقم رسالة المعاينة الحالية
     ud["reco_preview_msg_id"] = sent_preview.message_id
 
-
-def build_reco_groups_keyboard(
-    admin_id: int, context: ContextTypes.DEFAULT_TYPE
-) -> InlineKeyboardMarkup:
+def build_reco_groups_keyboard(admin_id: int, context: ContextTypes.DEFAULT_TYPE) -> InlineKeyboardMarkup:
     """يبني كيبورد اختيار المجموعات مع ترقيم الصفحات + خيار تثبيت التوصية"""
 
     ud = context.user_data.setdefault(admin_id, {})
@@ -2093,11 +1882,7 @@ def build_reco_groups_keyboard(
     # ============================================
     if not groups:
         rows.append(
-            [
-                InlineKeyboardButton(
-                    "⚠️ لا توجد مجموعات متاحة للبث", callback_data="reco_noop"
-                )
-            ]
+            [InlineKeyboardButton("⚠️ لا توجد مجموعات متاحة للبث", callback_data="reco_noop")]
         )
         rows.append([InlineKeyboardButton("⬅️ رجوع", callback_data="reco_cancel")])
         return InlineKeyboardMarkup(rows)
@@ -2122,9 +1907,9 @@ def build_reco_groups_keyboard(
 
         prefix = "✅" if cid in selected else "⬜"
 
-        rows.append(
-            [InlineKeyboardButton(f"{prefix} {title}", callback_data=f"reco_tgl_{cid}")]
-        )
+        rows.append([
+            InlineKeyboardButton(f"{prefix} {title}", callback_data=f"reco_tgl_{cid}")
+        ])
 
     # ============================================
     # 🔁 أزرار التنقل
@@ -2144,32 +1929,17 @@ def build_reco_groups_keyboard(
     # ============================================
     # 📌 زر التثبيت
     # ============================================
-    pin_label = (
-        "📌 تثبيت التوصية: مفعّل" if pin_enabled else "📌 تثبيت التوصية: غير مفعّل"
-    )
+    pin_label = "📌 تثبيت التوصية: مفعّل" if pin_enabled else "📌 تثبيت التوصية: غير مفعّل"
     rows.append([InlineKeyboardButton(pin_label, callback_data="reco_pin_toggle")])
 
     # ============================================
     # 📡 أزرار البث
     # ============================================
-    rows.append(
-        [
-            InlineKeyboardButton(
-                "📡 بث على المجموعات المحددة", callback_data="reco_broadcast"
-            )
-        ]
-    )
-    rows.append(
-        [
-            InlineKeyboardButton(
-                "📡 بث على جميع المجموعات", callback_data="reco_broadcast_all"
-            )
-        ]
-    )
+    rows.append([InlineKeyboardButton("📡 بث على المجموعات المحددة", callback_data="reco_broadcast")])
+    rows.append([InlineKeyboardButton("📡 بث على جميع المجموعات", callback_data="reco_broadcast_all")])
     rows.append([InlineKeyboardButton("❌ إلغاء التوصية", callback_data="reco_cancel")])
 
     return InlineKeyboardMarkup(rows)
-
 
 async def show_reco_groups(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """فتح قائمة اختيار المجموعات يدوياً"""
@@ -2198,9 +1968,7 @@ async def show_reco_groups(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "title": title,
                     "type": gtype,
                 }
-            logging.info(
-                f"[RECO INIT] تمت إعادة بناء BROADCAST_GROUPS من الإكسل. مجموع: {len(BROADCAST_GROUPS)}"
-            )
+            logging.info(f"[RECO INIT] تمت إعادة بناء BROADCAST_GROUPS من الإكسل. مجموع: {len(BROADCAST_GROUPS)}")
         except Exception as e:
             logging.error(f"[RECO INIT ERROR] {e}")
 
@@ -2227,10 +1995,11 @@ async def show_reco_groups(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # إرسال الرسالة
     await query.message.reply_text(
-        "\n".join(text_lines), reply_markup=keyboard, parse_mode="MARKDOWN"
+        "\n".join(text_lines),
+        reply_markup=keyboard,
+        parse_mode="MARKDOWN"
     )
     await query.answer()
-
 
 async def toggle_reco_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """تفعيل/إلغاء مجموعة من قائمة الاختيار"""
@@ -2308,56 +2077,40 @@ async def change_reco_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.answer()
 
-
 # ================================================================
 # 🧩 STEP 3 — تجميع المجموعات المستهدفة للبث من الذاكرة + الإكسل
 # ================================================================
 def collect_target_chat_ids(context: ContextTypes.DEFAULT_TYPE) -> list[int]:
-    """Collect target group/chat IDs for recommendation broadcasts from all trusted sources."""
-    targets: set[int] = set()
+    """يعيد قائمة جميع المجموعات المخزنة — سواء من الإكسل أو آخر جلسة"""
+    targets = set()
 
+    # 1️⃣ من القوائم المستعادة من Excel (group_logs)
     try:
-        if (
-            df_group_logs is not None
-            and not df_group_logs.empty
-            and "chat_id" in df_group_logs.columns
-        ):
-            for val in df_group_logs["chat_id"].dropna().tolist():
-                try:
-                    cid = int(val)
-                except Exception:
-                    continue
+        if "group_logs" in globals() and not df_group_logs.empty:
+            for _, row in df_group_logs.iterrows():
+                cid = int(row.get("chat_id", 0))
                 if cid < 0:
                     targets.add(cid)
     except Exception as e:
-        logging.warning(f"[TARGET GROUPS] failed to read df_group_logs: {e}")
+        logging.warning(f"[TARGET GROUPS] خطأ في قراءة شيت المجموعة: {e}")
 
+    # 2️⃣ المجموعات المحفوظة مسبقاً داخل الذاكرة (BROADCAST_GROUPS)
     try:
-        for gid in globals().get("BROADCAST_GROUPS", {}).keys():
-            try:
-                cid = int(gid)
-            except Exception:
-                continue
-            if cid < 0:
-                targets.add(cid)
-    except Exception as e:
-        logging.warning(f"[TARGET GROUPS] failed to read BROADCAST_GROUPS: {e}")
+        global BROADCAST_GROUPS
+        for gid in BROADCAST_GROUPS.keys():
+            if int(gid) < 0:
+                targets.add(int(gid))
+    except Exception:
+        pass
 
-    try:
-        for data in context.bot_data.values():
-            if isinstance(data, dict) and "group_id" in data:
-                try:
-                    cid = int(data.get("group_id"))
-                except Exception:
-                    continue
-                if cid < 0:
-                    targets.add(cid)
-    except Exception as e:
-        logging.warning(f"[TARGET GROUPS] failed to read context.bot_data: {e}")
+    # 3️⃣ القروبات النشطة التي اكتشفها البوت خلال الجلسات
+    for key, data in context.bot_data.items():
+        if isinstance(data, dict) and "group_id" in data:
+            gid = data.get("group_id")
+            if gid and gid < 0:
+                targets.add(gid)
 
-    logging.info(f"[TARGET GROUPS] total target groups: {len(targets)}")
-    return sorted(targets)
-
+    return list(targets)
 
 async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """بث التوصية على المجموعات (الكل أو المحدد فقط) + خيار تثبيت الرسالة + إشعار المشرفين"""
@@ -2382,9 +2135,7 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
         media_list = [media]
 
     if not text and not media_list:
-        await query.answer(
-            "لا توجد توصية جاهزة للبث. يرجى إرسال التوصية أولاً.", show_alert=True
-        )
+        await query.answer("لا توجد توصية جاهزة للبث. يرجى إرسال التوصية أولاً.", show_alert=True)
         return
 
     data = query.data or ""
@@ -2442,7 +2193,7 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
         safe_url = html.escape(url, quote=True)
         if html_text:
             html_text += "\n\n"
-        html_text += f'🔗 <a href="{safe_url}">اضغط هنا لعرض التفاصيل</a>'
+        html_text += f"🔗 <a href=\"{safe_url}\">اضغط هنا لعرض التفاصيل</a>"
 
     sent = failed = skipped = 0
 
@@ -2462,9 +2213,7 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
             if media_list:
                 try:
                     # نفصل بين الوسائط الصوتية وغيرها
-                    non_voice_media = [
-                        m for m in media_list if m.get("type") != "voice"
-                    ]
+                    non_voice_media = [m for m in media_list if m.get("type") != "voice"]
                     voice_media = [m for m in media_list if m.get("type") == "voice"]
 
                     # 🧩 حالة وجود وسائط غير صوتية وصوت معاً
@@ -2472,7 +2221,7 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
                         # 🔢 ترتيب غير الصوتية: فيديو → صور → مستندات
                         non_voice_media = sorted(
                             non_voice_media,
-                            key=lambda m: type_order.get(m.get("type"), 3),
+                            key=lambda m: type_order.get(m.get("type"), 3)
                         )
 
                         album = []
@@ -2492,9 +2241,7 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
                         album_msgs = []
                         if album:
                             # 🖼️ كل الوسائط غير الصوتية برسالة واحدة (ألبوم) بدون كابتشن
-                            album_msgs = await context.bot.send_media_group(
-                                chat_id, album
-                            )
+                            album_msgs = await context.bot.send_media_group(chat_id, album)
 
                         # 🎧 نرسل أول ملف صوتي مع نص التوصية الكامل + التذييل
                         main_voice = voice_media[0]
@@ -2516,9 +2263,7 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
                                 if vf2:
                                     await context.bot.send_voice(chat_id, vf2)
                             except Exception as e2:
-                                logging.warning(
-                                    f"[RECO BROADCAST] فشل إرسال voice إضافي إلى {chat_id}: {e2}"
-                                )
+                                logging.warning(f"[RECO BROADCAST] فشل إرسال voice إضافي إلى {chat_id}: {e2}")
 
                         # الرسالة التي يمكن تثبيتها: نفضّل رسالة الصوت + النص
                         sent_msg = voice_msg or (album_msgs[0] if album_msgs else None)
@@ -2527,7 +2272,7 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
                     elif non_voice_media and not voice_media:
                         non_voice_media = sorted(
                             non_voice_media,
-                            key=lambda m: type_order.get(m.get("type"), 3),
+                            key=lambda m: type_order.get(m.get("type"), 3)
                         )
 
                         album = []
@@ -2574,9 +2319,7 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
 
                         album_msgs = []
                         if album:
-                            album_msgs = await context.bot.send_media_group(
-                                chat_id, album
-                            )
+                            album_msgs = await context.bot.send_media_group(chat_id, album)
 
                         sent_msg = album_msgs[0] if album_msgs else None
 
@@ -2601,16 +2344,12 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
                                 if vf:
                                     await context.bot.send_voice(chat_id, vf)
                             except Exception as e2:
-                                logging.warning(
-                                    f"[RECO BROADCAST] فشل إرسال voice إضافي إلى {chat_id}: {e2}"
-                                )
+                                logging.warning(f"[RECO BROADCAST] فشل إرسال voice إضافي إلى {chat_id}: {e2}")
 
                         sent_msg = first_voice_msg
 
                 except Exception as e:
-                    logging.warning(
-                        f"[RECO BROADCAST] خطأ أثناء إرسال الوسائط المتعددة إلى {chat_id}: {e}"
-                    )
+                    logging.warning(f"[RECO BROADCAST] خطأ أثناء إرسال الوسائط المتعددة إلى {chat_id}: {e}")
                     # في حالة أي خطأ نرجع للخطة البسيطة: نص فقط
                     sent_msg = await context.bot.send_message(
                         chat_id,
@@ -2629,9 +2368,7 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
                             parse_mode=constants.ParseMode.HTML,
                         )
                 except Exception as e:
-                    logging.warning(
-                        f"[RECO BROADCAST] تعذر إرسال صورة GO-NOW.PNG إلى {chat_id}: {e}"
-                    )
+                    logging.warning(f"[RECO BROADCAST] تعذر إرسال صورة GO-NOW.PNG إلى {chat_id}: {e}")
                     # في حال فشل تحميل الصورة نرجع لإرسال التوصية كنص HTML فقط
                     sent_msg = await context.bot.send_message(
                         chat_id,
@@ -2652,9 +2389,7 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
                     # غالباً لأن البوت لا يملك صلاحية التثبيت – نتجاهل بدون إيقاف البث
                     logging.warning(f"[RECO PIN] تعذر تثبيت الرسالة في {chat_id}: {e}")
                 except Exception as e:
-                    logging.warning(
-                        f"[RECO PIN] خطأ غير متوقع أثناء التثبيت في {chat_id}: {e}"
-                    )
+                    logging.warning(f"[RECO PIN] خطأ غير متوقع أثناء التثبيت في {chat_id}: {e}")
 
             sent += 1
         except Exception as e:
@@ -2696,7 +2431,8 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
     voice_media = [m for m in media_list if m.get("type") == "voice"]
     if non_voice_media:
         non_voice_media = sorted(
-            non_voice_media, key=lambda m: type_order.get(m.get("type"), 3)
+            non_voice_media,
+            key=lambda m: type_order.get(m.get("type"), 3)
         )
         notify_media = non_voice_media[0]
     elif voice_media:
@@ -2708,21 +2444,13 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
                 mtype = notify_media.get("type")
                 fid = notify_media.get("file_id")
                 if mtype == "photo":
-                    await context.bot.send_photo(
-                        aid, fid, caption=admin_notification_caption
-                    )
+                    await context.bot.send_photo(aid, fid, caption=admin_notification_caption)
                 elif mtype == "video":
-                    await context.bot.send_video(
-                        aid, fid, caption=admin_notification_caption
-                    )
+                    await context.bot.send_video(aid, fid, caption=admin_notification_caption)
                 elif mtype == "document":
-                    await context.bot.send_document(
-                        aid, fid, caption=admin_notification_caption
-                    )
+                    await context.bot.send_document(aid, fid, caption=admin_notification_caption)
                 elif mtype == "voice":
-                    await context.bot.send_voice(
-                        aid, fid, caption=admin_notification_caption
-                    )
+                    await context.bot.send_voice(aid, fid, caption=admin_notification_caption)
             else:
                 await context.bot.send_message(aid, admin_notification_caption)
         except Exception as e:
@@ -2736,7 +2464,6 @@ async def broadcast_recommendation(update: Update, context: ContextTypes.DEFAULT
     ud.pop("reco_pin", None)
     # يمكنك أيضاً إعادة وضع reco_mode لو تحب:
     # ud["reco_mode"] = None
-
 
 async def cancel_recommendation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """إلغاء وضع التوصية والرجوع للقائمة الرئيسية"""
@@ -2763,14 +2490,11 @@ async def cancel_recommendation(update: Update, context: ContextTypes.DEFAULT_TY
         msg = await context.bot.send_message(
             chat_id=admin_id,
             text="✅ تم إلغاء التوصية الفنية.\nفضلاً اختر الخدمة المطلوبة 🛠️ :",
-            reply_markup=keyboard,
+            reply_markup=keyboard
         )
         register_message(admin_id, msg.message_id, admin_id, context)
     except Exception as e:
-        logging.warning(
-            f"[RECO CANCEL] فشل إرسال القائمة الرئيسية بعد الإلغاء للمشرف {admin_id}: {e}"
-        )
-
+        logging.warning(f"[RECO CANCEL] فشل إرسال القائمة الرئيسية بعد الإلغاء للمشرف {admin_id}: {e}")
 
 async def toggle_reco_pin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """تفعيل/إلغاء خيار تثبيت التوصية من شاشة اختيار المجموعات"""
@@ -2794,7 +2518,6 @@ async def toggle_reco_pin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     status = "مفعّل ✅" if ud["reco_pin"] else "غير مفعّل ❌"
     await query.answer(f"خيار تثبيت التوصية الآن: {status}", show_alert=False)
-
 
 ### ✅ الدالة المعدلة: handle_message (فقط جزء الاقتراح)
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2841,21 +2564,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # قفل الكتابة على ملف الإكسل قبل تعديل شيت managers
             async with EXCEL_LOCK:
-                with pd.ExcelWriter(
-                    "bot_data.xlsx",
-                    engine="openpyxl",
-                    mode="a",
-                    if_sheet_exists="replace",
-                ) as writer:
+                with pd.ExcelWriter("bot_data.xlsx", engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
                     df_admins.to_excel(writer, sheet_name="managers", index=False)
 
-            await message.reply_text(
-                f"🗑️ تم حذف المشرف بنجاح:\n<code>{target_id}</code>", parse_mode="HTML"
-            )
+            await message.reply_text(f"🗑️ تم حذف المشرف بنجاح:\n<code>{target_id}</code>", parse_mode="HTML")
         except Exception as e:
-            await message.reply_text(
-                f"❌ حدث خطأ أثناء حذف المشرف:\n<code>{e}</code>", parse_mode="HTML"
-            )
+            await message.reply_text(f"❌ حدث خطأ أثناء حذف المشرف:\n<code>{e}</code>", parse_mode="HTML")
         context.user_data[admin_id]["action"] = None
         return
 
@@ -2872,27 +2586,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
             AUTHORIZED_USERS.append(new_admin_id)
-            df_admins = pd.concat(
-                [df_admins, pd.DataFrame([{"manager_id": new_admin_id}])],
-                ignore_index=True,
-            )
+            df_admins = pd.concat([df_admins, pd.DataFrame([{"manager_id": new_admin_id}])], ignore_index=True)
             # قفل الكتابة على ملف الإكسل قبل تعديل شيت managers
             async with EXCEL_LOCK:
-                with pd.ExcelWriter(
-                    "bot_data.xlsx",
-                    engine="openpyxl",
-                    mode="a",
-                    if_sheet_exists="replace",
-                ) as writer:
+                with pd.ExcelWriter("bot_data.xlsx", engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
                     df_admins.to_excel(writer, sheet_name="managers", index=False)
 
-            await message.reply_text(
-                f"✅ تم إضافة المشرف:\n<code>{new_admin_id}</code>", parse_mode="HTML"
-            )
+            await message.reply_text(f"✅ تم إضافة المشرف:\n<code>{new_admin_id}</code>", parse_mode="HTML")
         except Exception as e:
-            await message.reply_text(
-                f"❌ فشل أثناء حفظ الملف:\n<code>{e}</code>", parse_mode="HTML"
-            )
+            await message.reply_text(f"❌ فشل أثناء حفظ الملف:\n<code>{e}</code>", parse_mode="HTML")
         context.user_data[admin_id]["action"] = None
         return
 
@@ -2944,18 +2646,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             suggestion_id = await start_suggestion_session(actual_user_id, context)
             record = suggestion_records[actual_user_id][suggestion_id]
 
-        if not context.user_data[actual_user_id].get(
-            "compose_text"
-        ) and not context.user_data[actual_user_id].get("compose_media"):
+        if not context.user_data[actual_user_id].get("compose_text") and not context.user_data[actual_user_id].get("compose_media"):
             record["text"] = ""
             record["media"] = None
 
         group_name = chat.title if chat.type in ["group", "supergroup"] else "خاص"
         group_id = chat.id
         if group_name == "خاص" or group_id == actual_user_id:
-            fallback = context.user_data.get(
-                actual_user_id, {}
-            ) or context.bot_data.get(actual_user_id, {})
+            fallback = context.user_data.get(actual_user_id, {}) or context.bot_data.get(actual_user_id, {})
             group_name = fallback.get("group_title", "غير معروف")
             group_id = fallback.get("group_id", actual_user_id)
 
@@ -2980,39 +2678,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif message.voice:
                 file_id = message.voice.file_id
                 media_type = "voice"
-            context.user_data[actual_user_id]["compose_media"] = {
-                "type": media_type,
-                "file_id": file_id,
-            }
+            context.user_data[actual_user_id]["compose_media"] = {"type": media_type, "file_id": file_id}
             record["media"] = {"type": media_type, "file_id": file_id}
 
         buttons = [
             [InlineKeyboardButton("📤 إرسال", callback_data="send_suggestion")],
-            [InlineKeyboardButton("❌ إلغاء", callback_data="cancel_suggestion")],
+            [InlineKeyboardButton("❌ إلغاء", callback_data="cancel_suggestion")]
         ]
 
         has_text = context.user_data[actual_user_id].get("compose_text")
         has_media = context.user_data[actual_user_id].get("compose_media")
 
         if has_text and has_media:
-            await message.reply_text(
-                "✅ تم حفظ النص والوسائط. يمكنك الإرسال الآن:",
-                reply_markup=InlineKeyboardMarkup(buttons),
-            )
+            await message.reply_text("✅ تم حفظ النص والوسائط. يمكنك الإرسال الآن:", reply_markup=InlineKeyboardMarkup(buttons))
         elif has_text:
-            await message.reply_text(
-                "📎 لقد قمت بادخال النص بنجاج . يمكنك الآن إدخال وسائط أو الإرسال:",
-                reply_markup=InlineKeyboardMarkup(buttons),
-            )
+            await message.reply_text("📎 لقد قمت بادخال النص بنجاج . يمكنك الآن إدخال وسائط أو الإرسال:", reply_markup=InlineKeyboardMarkup(buttons))
         elif has_media:
-            await message.reply_text(
-                "🖼️ لقد قمت بادخال الوسائط بنجاح . يمكنك الآن إدخال نص أو الإرسال:",
-                reply_markup=InlineKeyboardMarkup(buttons),
-            )
+            await message.reply_text("🖼️ لقد قمت بادخال الوسائط بنجاح . يمكنك الآن إدخال نص أو الإرسال:", reply_markup=InlineKeyboardMarkup(buttons))
         else:
-            await message.reply_text(
-                "⚠️ لم يتم تسجيل أي محتوى. الرجاء إدخال نص أو وسائط."
-            )
+            await message.reply_text("⚠️ لم يتم تسجيل أي محتوى. الرجاء إدخال نص أو وسائط.")
         return
 
     # =========================
@@ -3024,31 +2708,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # ✅ المهم: التذكرة تُقرأ من بيانات المشرف وليس من المستخدم
         suggestion_id = admin_state.get("active_suggestion_id")
         if not suggestion_id:
-            await message.reply_text(
-                "⚠️ لا توجد تذكرة محددة للرد عليها. افتح التذكرة من زر (الرد على الاستفسار)."
-            )
+            await message.reply_text("⚠️ لا توجد تذكرة محددة للرد عليها. افتح التذكرة من زر (الرد على الاستفسار).")
             return
 
         # ✅ منع KeyError
         record = suggestion_records.get(actual_user_id, {}).get(suggestion_id)
         if not record:
-            await message.reply_text(
-                "⚠️ التذكرة غير موجودة أو تم تنظيفها. افتح التذكرة مجددًا من القائمة."
-            )
+            await message.reply_text("⚠️ التذكرة غير موجودة أو تم تنظيفها. افتح التذكرة مجددًا من القائمة.")
             return
 
-        if not context.user_data[admin_id].get(
-            "compose_text"
-        ) and not context.user_data[admin_id].get("compose_media"):
+        if not context.user_data[admin_id].get("compose_text") and not context.user_data[admin_id].get("compose_media"):
             record["reply_text"] = ""
             record["reply_media"] = None
 
         group_name = chat.title if chat.type in ["group", "supergroup"] else "خاص"
         group_id = chat.id
         if group_name == "خاص" or group_id == actual_user_id:
-            fallback = context.user_data.get(
-                actual_user_id, {}
-            ) or context.bot_data.get(actual_user_id, {})
+            fallback = context.user_data.get(actual_user_id, {}) or context.bot_data.get(actual_user_id, {})
             group_name = fallback.get("group_title", "غير معروف")
             group_id = fallback.get("group_id", actual_user_id)
 
@@ -3073,39 +2749,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif message.voice:
                 file_id = message.voice.file_id
                 media_type = "voice"
-            context.user_data[admin_id]["compose_media"] = {
-                "type": media_type,
-                "file_id": file_id,
-            }
+            context.user_data[admin_id]["compose_media"] = {"type": media_type, "file_id": file_id}
             record["reply_media"] = {"type": media_type, "file_id": file_id}
 
         buttons = [
             [InlineKeyboardButton("📤 إرسال الرد", callback_data="submit_admin_reply")],
-            [InlineKeyboardButton("❌ إلغاء", callback_data="cancel_custom_reply")],
+            [InlineKeyboardButton("❌ إلغاء", callback_data="cancel_custom_reply")]
         ]
 
         has_text = context.user_data[admin_id].get("compose_text")
         has_media = context.user_data[admin_id].get("compose_media")
 
         if has_text and has_media:
-            await message.reply_text(
-                "✅ تم حفظ النص والوسائط. يمكنك الإرسال الآن:",
-                reply_markup=InlineKeyboardMarkup(buttons),
-            )
+            await message.reply_text("✅ تم حفظ النص والوسائط. يمكنك الإرسال الآن:", reply_markup=InlineKeyboardMarkup(buttons))
         elif has_text:
-            await message.reply_text(
-                "📎 لقد قمت بادخال النص بنجاج . يمكنك الآن إدخال وسائط أو الإرسال:",
-                reply_markup=InlineKeyboardMarkup(buttons),
-            )
+            await message.reply_text("📎 لقد قمت بادخال النص بنجاج . يمكنك الآن إدخال وسائط أو الإرسال:", reply_markup=InlineKeyboardMarkup(buttons))
         elif has_media:
-            await message.reply_text(
-                "🖼️ لقد قمت بادخال الوسائط بنجاح . يمكنك الآن إدخال نص أو الإرسال:",
-                reply_markup=InlineKeyboardMarkup(buttons),
-            )
+            await message.reply_text("🖼️ لقد قمت بادخال الوسائط بنجاح . يمكنك الآن إدخال نص أو الإرسال:", reply_markup=InlineKeyboardMarkup(buttons))
         else:
-            await message.reply_text(
-                "⚠️ لم يتم تسجيل أي محتوى. الرجاء إدخال نص أو وسائط."
-            )
+            await message.reply_text("⚠️ لم يتم تسجيل أي محتوى. الرجاء إدخال نص أو وسائط.")
         return
 
     # ✅ استعلام قطع الغيار بالنص
@@ -3142,9 +2804,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             register_message(user_id, info_msg.message_id, chat.id, context)
         else:
-            info_msg = await message.reply_text(
-                "⚠️ تبقى آخر استعلام مسموح لك خلال هذي الجلسة."
-            )
+            info_msg = await message.reply_text("⚠️ تبقى آخر استعلام مسموح لك خلال هذي الجلسة.")
             register_message(user_id, info_msg.message_id, chat.id, context)
 
         # ✅ جدولة تصفير عداد البحث اليدوي بعد 15 دقيقة من آخر استعلام
@@ -3153,12 +2813,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 context.job_queue.run_once(
                     reset_manual_search_state,
                     when=timedelta(minutes=15),
-                    data={"user_id": user_id},
+                    data={"user_id": user_id}
                 )
             except Exception as e:
-                logging.warning(
-                    f"[JOB ERROR] فشل في جدولة تصفير عداد البحث اليدوي للمستخدم {user_id}: {e}"
-                )
+                logging.warning(f"[JOB ERROR] فشل في جدولة تصفير عداد البحث اليدوي للمستخدم {user_id}: {e}")
 
         selected_car = context.user_data[user_id].get("selected_car")
         if not selected_car:
@@ -3169,15 +2827,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         filtered_df = df_parts[df_parts["Station No"] == selected_car]
         columns_to_search = ["Station Name", "Part No"]
         matches = filtered_df[
-            filtered_df[columns_to_search]
-            .apply(lambda x: x.str.contains(part_name, case=False, na=False))
-            .any(axis=1)
+            filtered_df[columns_to_search].apply(
+                lambda x: x.str.contains(part_name, case=False, na=False)
+            ).any(axis=1)
         ]
 
         if matches.empty:
-            msg = await message.reply_text(
-                "❌ لم يتم العثور على نتائج او الادخال خاطي."
-            )
+            msg = await message.reply_text("❌ لم يتم العثور على نتائج او الادخال خاطي.")
             register_message(user_id, msg.message_id, chat.id, context)
             return
 
@@ -3195,7 +2851,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"<i>{selected_car_safe}</i>\n\n"
         )
 
-        results_header = f"<b>📌 نتائج البحث عن:</b> <code>{part_name_safe}</code>\n"
+        results_header = (
+            f"<b>📌 نتائج البحث عن:</b> <code>{part_name_safe}</code>\n"
+        )
 
         lines = []
         for idx, (_, row) in enumerate(matches.iterrows(), start=1):
@@ -3219,7 +2877,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         body = "\n\n".join(lines)
 
         # 💡 ملاحظة بدون span
-        note_line = "\n\n<i>💡 يمكن عرض صور قطع الغيار بشكل أوضح من خلال التصنيفات داخل خدمة قطع الغيار.</i>"
+        note_line = (
+            "\n\n<i>💡 يمكن عرض صور قطع الغيار بشكل أوضح من خلال التصنيفات داخل خدمة قطع الغيار.</i>"
+        )
 
         footer = (
             f"\n\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 15 دقيقة "
@@ -3233,12 +2893,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # ✅ زر "عرض القطع المصنفة" يفتح تصنيفات القطع لنفس الفئة المختارة
         safe_car = str(selected_car).replace(" ", "_")
         keyboard_rows.append(
-            [
-                InlineKeyboardButton(
-                    "🗂 عرض القطع المصنفة",
-                    callback_data=f"showparts_{safe_car}_{user_id}",
-                )
-            ]
+            [InlineKeyboardButton("🗂 عرض القطع المصنفة", callback_data=f"showparts_{safe_car}_{user_id}")]
         )
 
         parts_brand = context.user_data[user_id].get("parts_brand")
@@ -3246,20 +2901,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if parts_brand:
             safe_brand = parts_brand.replace(" ", "_")
             keyboard_rows.append(
-                [
-                    InlineKeyboardButton(
-                        "⬅️ رجوع لاختيار سيارة",
-                        callback_data=f"pbrand_{safe_brand}_{user_id}",
-                    )
-                ]
+                [InlineKeyboardButton("⬅️ رجوع لاختيار سيارة", callback_data=f"pbrand_{safe_brand}_{user_id}")]
             )
 
         keyboard_rows.append(
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                )
-            ]
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
         )
 
         msg = await message.reply_text(
@@ -3269,7 +2915,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         register_message(user_id, msg.message_id, chat.id, context)
         return
-
 
 async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -3308,14 +2953,7 @@ async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # ✅ تنظيف حالة المشرف فقط (بدون حذف سجلات المستخدم)
         context.user_data.setdefault(admin_id, {})
-        for k in [
-            "compose_mode",
-            "custom_reply_for",
-            "active_suggestion_id",
-            "compose_text",
-            "compose_media",
-            "ready_reply_text",
-        ]:
+        for k in ["compose_mode", "custom_reply_for", "active_suggestion_id", "compose_text", "compose_media", "ready_reply_text"]:
             context.user_data[admin_id].pop(k, None)
 
         # تعديل الرسالة بدل مربع إشعار
@@ -3345,8 +2983,7 @@ async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.delete()
     except Exception:
         pass
-
-
+        
 async def show_manual_car_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data.split("_")
@@ -3361,16 +2998,21 @@ async def show_manual_car_list(update: Update, context: ContextTypes.DEFAULT_TYP
     try:
         manual_df = df_manual
     except Exception as e:
-        await log_event(
-            update, f"❌ فشل في تحميل بيانات دليل المالك من Excel: {e}", level="error"
-        )
+        await log_event(update, f"❌ فشل في تحميل بيانات دليل المالك من Excel: {e}", level="error")
         msg = await query.message.reply_text("📂 تعذر تحميل بيانات دليل المالك حالياً.")
         register_message(user_id, msg.message_id, query.message.chat_id, context)
         return
 
     brands = []
     if not manual_df.empty and "brand" in manual_df.columns:
-        brands = manual_df["brand"].dropna().astype(str).str.strip().unique().tolist()
+        brands = (
+            manual_df["brand"]
+            .dropna()
+            .astype(str)
+            .str.strip()
+            .unique()
+            .tolist()
+        )
         brands = [b for b in brands if b]
 
     # ✅ في حال وجود براندات → نعرض قائمة البراندات
@@ -3379,19 +3021,11 @@ async def show_manual_car_list(update: Update, context: ContextTypes.DEFAULT_TYP
         for brand in brands:
             safe_brand = brand.replace(" ", "_")
             keyboard.append(
-                [
-                    InlineKeyboardButton(
-                        brand, callback_data=f"mnlbrand_{safe_brand}_{user_id}"
-                    )
-                ]
+                [InlineKeyboardButton(brand, callback_data=f"mnlbrand_{safe_brand}_{user_id}")]
             )
 
         keyboard.append(
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}"
-                )
-            ]
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}")]
         )
 
         text = (
@@ -3405,18 +3039,22 @@ async def show_manual_car_list(update: Update, context: ContextTypes.DEFAULT_TYP
             # لو الرسالة نص نعدلها، لو صورة (غلاف) نرسل رسالة جديدة
             if getattr(query.message, "text", None):
                 msg = await query.message.edit_text(
-                    text, reply_markup=markup, parse_mode=constants.ParseMode.MARKDOWN
+                    text,
+                    reply_markup=markup,
+                    parse_mode=constants.ParseMode.MARKDOWN
                 )
             else:
                 msg = await query.message.reply_text(
-                    text, reply_markup=markup, parse_mode=constants.ParseMode.MARKDOWN
+                    text,
+                    reply_markup=markup,
+                    parse_mode=constants.ParseMode.MARKDOWN
                 )
         except Exception as e:
-            await log_event(
-                update, f"❌ فشل في إرسال قائمة براندات دليل المالك: {e}", level="error"
-            )
+            await log_event(update, f"❌ فشل في إرسال قائمة براندات دليل المالك: {e}", level="error")
             msg = await query.message.reply_text(
-                text, reply_markup=markup, parse_mode=constants.ParseMode.MARKDOWN
+                text,
+                reply_markup=markup,
+                parse_mode=constants.ParseMode.MARKDOWN
             )
 
         register_message(user_id, msg.message_id, query.message.chat_id, context)
@@ -3429,28 +3067,18 @@ async def show_manual_car_list(update: Update, context: ContextTypes.DEFAULT_TYP
     try:
         car_names = manual_df["car_name"].dropna().drop_duplicates().tolist()
     except Exception as e:
-        await log_event(
-            update, f"❌ فشل في تحميل قائمة السيارات من Excel: {e}", level="error"
-        )
+        await log_event(update, f"❌ فشل في تحميل قائمة السيارات من Excel: {e}", level="error")
         msg = await query.message.reply_text("📂 تعذر تحميل قائمة دليل المالك حالياً.")
         register_message(user_id, msg.message_id, query.message.chat_id, context)
         return
 
     keyboard = [
-        [
-            InlineKeyboardButton(
-                car, callback_data=f"manualcar_{car.replace(' ', '_')}_{user_id}"
-            )
-        ]
+        [InlineKeyboardButton(car, callback_data=f"manualcar_{car.replace(' ', '_')}_{user_id}")]
         for car in car_names
     ]
 
     keyboard.append(
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}"
-            )
-        ]
+        [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}")]
     )
 
     text = (
@@ -3463,25 +3091,28 @@ async def show_manual_car_list(update: Update, context: ContextTypes.DEFAULT_TYP
     try:
         if getattr(query.message, "text", None):
             msg = await query.message.edit_text(
-                text, reply_markup=markup, parse_mode=constants.ParseMode.MARKDOWN
+                text,
+                reply_markup=markup,
+                parse_mode=constants.ParseMode.MARKDOWN
             )
         else:
             msg = await query.message.reply_text(
-                text, reply_markup=markup, parse_mode=constants.ParseMode.MARKDOWN
+                text,
+                reply_markup=markup,
+                parse_mode=constants.ParseMode.MARKDOWN
             )
     except Exception as e:
-        await log_event(
-            update, f"❌ فشل في إرسال قائمة دليل المالك: {e}", level="error"
-        )
+        await log_event(update, f"❌ فشل في إرسال قائمة دليل المالك: {e}", level="error")
         msg = await query.message.reply_text(
-            text, reply_markup=markup, parse_mode=constants.ParseMode.MARKDOWN
+            text,
+            reply_markup=markup,
+            parse_mode=constants.ParseMode.MARKDOWN
         )
 
     register_message(user_id, msg.message_id, query.message.chat_id, context)
     context.user_data.setdefault(user_id, {})
     context.user_data[user_id]["manual_msg_id"] = msg.message_id
     context.user_data[user_id]["last_message_id"] = msg.message_id
-
 
 async def manual_brand_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -3540,20 +3171,10 @@ async def manual_brand_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"`⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 15 دقيقة ({delete_time} / 🇸🇦)`"
         )
 
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "⬅️ رجوع لاختيار براند آخر", callback_data=f"manual_{user_id}"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}"
-                    )
-                ],
-            ]
-        )
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ رجوع لاختيار براند آخر", callback_data=f"manual_{user_id}")],
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}")],
+        ])
 
         try:
             # لو الرسالة الأصلية نص نعدلها، لو غلاف/صورة نرسل رسالة جديدة
@@ -3593,18 +3214,10 @@ async def manual_brand_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # أزرار الرجوع (براند آخر + قائمة رئيسية)
     keyboard.append(
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع لاختيار براند آخر", callback_data=f"manual_{user_id}"
-            )
-        ]
+        [InlineKeyboardButton("⬅️ رجوع لاختيار براند آخر", callback_data=f"manual_{user_id}")]
     )
     keyboard.append(
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}"
-            )
-        ]
+        [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}")]
     )
 
     text = (
@@ -3639,7 +3252,6 @@ async def manual_brand_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
             level="error",
         )
 
-
 async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     parts = query.data.split("_")
@@ -3648,13 +3260,9 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = query.from_user.full_name
 
     try:
-        old_msg_id = context.user_data.get(user_id_from_callback, {}).get(
-            "manual_msg_id"
-        )
+        old_msg_id = context.user_data.get(user_id_from_callback, {}).get("manual_msg_id")
         if old_msg_id:
-            await context.bot.delete_message(
-                chat_id=query.message.chat_id, message_id=old_msg_id
-            )
+            await context.bot.delete_message(chat_id=query.message.chat_id, message_id=old_msg_id)
     except Exception:
         pass
 
@@ -3681,12 +3289,7 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     back_keyboard = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("⬅️ اختيار سيارة اخرى", callback_data=other_car_cb)],
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية",
-                    callback_data=f"back:main:{user_id_from_callback}",
-                )
-            ],
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id_from_callback}")],
         ]
     )
 
@@ -3698,9 +3301,7 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=constants.ParseMode.MARKDOWN,
             reply_markup=back_keyboard,
         )
-        register_message(
-            user_id_from_callback, msg.message_id, query.message.chat_id, context
-        )
+        register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
         await log_event(update, f"📂 لا توجد بيانات لـ {car_name}", level="error")
         return
 
@@ -3715,9 +3316,7 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=constants.ParseMode.MARKDOWN,
             reply_markup=back_keyboard,
         )
-        register_message(
-            user_id_from_callback, msg.message_id, query.message.chat_id, context
-        )
+        register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
         await log_event(update, f"📂 لا يوجد غلاف لـ {car_name}", level="error")
         return
 
@@ -3725,19 +3324,9 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     caption = get_manual_caption(user_name, car_name)
 
     keyboard = [
-        [
-            InlineKeyboardButton(
-                "📘 استعراض دليل المالك",
-                callback_data=f"openpdf_{index}_{user_id_from_callback}",
-            )
-        ],
+        [InlineKeyboardButton("📘 استعراض دليل المالك", callback_data=f"openpdf_{index}_{user_id_from_callback}")],
         [InlineKeyboardButton("⬅️ اختيار سيارة اخرى", callback_data=other_car_cb)],
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع للقائمة الرئيسية",
-                callback_data=f"back:main:{user_id_from_callback}",
-            )
-        ],
+        [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id_from_callback}")],
     ]
 
     try:
@@ -3747,24 +3336,15 @@ async def handle_manualcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=constants.ParseMode.MARKDOWN,
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
-        register_message(
-            user_id_from_callback, msg.message_id, query.message.chat_id, context
-        )
+        register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
         context.user_data[user_id_from_callback]["manual_msg_id"] = msg.message_id
         await log_event(update, f"✅ تم عرض غلاف دليل {car_name}")
     except Exception as e:
-        await log_event(
-            update, f"❌ خطأ أثناء إرسال الغلاف لـ {car_name}: {e}", level="error"
-        )
-        msg = await query.message.reply_text(
-            "📂 فشل في إرسال الغلاف. يرجى المحاولة لاحقاً."
-        )
-        register_message(
-            user_id_from_callback, msg.message_id, query.message.chat_id, context
-        )
+        await log_event(update, f"❌ خطأ أثناء إرسال الغلاف لـ {car_name}: {e}", level="error")
+        msg = await query.message.reply_text("📂 فشل في إرسال الغلاف. يرجى المحاولة لاحقاً.")
+        register_message(user_id_from_callback, msg.message_id, query.message.chat_id, context)
 
     context.user_data[user_id_from_callback].pop("manual_viewed", None)
-
 
 async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -3788,9 +3368,7 @@ async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE)
         car_name = str(row.get("car_name", "")).strip() or "غير معروف"
         file_id = row.get("pdf_file_id", None)
     except Exception:
-        await query.answer(
-            "❌ تعذر تحميل الملف – غير متوفر أو بيانات غير صالحة.", show_alert=True
-        )
+        await query.answer("❌ تعذر تحميل الملف – غير متوفر أو بيانات غير صالحة.", show_alert=True)
         return
 
     user_name = query.from_user.full_name or "الصديق"
@@ -3812,11 +3390,7 @@ async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     back_keyboard = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("⬅️ اختيار سيارة اخرى", callback_data=other_car_cb)],
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}"
-                )
-            ],
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}")],
         ]
     )
 
@@ -3831,7 +3405,7 @@ async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 message_id=query.message.message_id,
             )
         except Exception:
-            # لو ما قدر يحذفها نكمل عادي
+        # لو ما قدر يحذفها نكمل عادي
             pass
 
         msg = await query.message.reply_text(
@@ -3870,15 +3444,10 @@ async def handle_manualdfcar(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         await log_event(update, f"📘 تم إرسال ملف دليل {car_name}")
     except Exception as e:
-        await log_event(
-            update, f"❌ فشل في إرسال دليل PDF لـ {car_name}: {e}", level="error"
-        )
+        await log_event(update, f"❌ فشل في إرسال دليل PDF لـ {car_name}: {e}", level="error")
         await query.message.reply_text("📂 تعذر إرسال الملف. حاول لاحقاً.")
 
-
-def get_manual_not_available_message(
-    user_name: str, car_name: str, delete_time: str
-) -> str:
+def get_manual_not_available_message(user_name: str, car_name: str, delete_time: str) -> str:
     return (
         f"`🧑‍💻 استعلام خاص بـ {user_name}`\n\n"
         f"📘 نعتذر، دليل المالك للسيارة ({car_name}) غير متوفر حالياً.\n"
@@ -3889,9 +3458,9 @@ def get_manual_not_available_message(
 
 def get_manual_caption(user_name: str, car_name: str) -> str:
     return (
-        f"`🧑‍💼 استعلام خاص بـ {user_name}`\n\n📜 دليل المالك للسيارة ({car_name})\n\n"
+        f"`🧑‍💼 استعلام خاص بـ {user_name}`\n\n"
+        f"📜 دليل المالك للسيارة ({car_name})\n\n"
     )
-
 
 async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -3929,21 +3498,12 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
     if parts_brand:
         safe_brand = parts_brand.replace(" ", "_")
         keyboard.append(
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع لاختيار سيارة اخرى",
-                    callback_data=f"pbrand_{safe_brand}_{user_id}",
-                )
-            ]
+            [InlineKeyboardButton("⬅️ رجوع لاختيار سيارة اخرى", callback_data=f"pbrand_{safe_brand}_{user_id}")]
         )
 
     # 🔙 زر رجوع للقائمة الرئيسية
     keyboard.append(
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-            )
-        ]
+        [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
     )
 
     # ✅ تنسيق الرد النهائي بصيغة احترافية
@@ -3975,8 +3535,7 @@ async def select_car_for_parts(update: Update, context: ContextTypes.DEFAULT_TYP
 
     register_message(user_id, msg.message_id, query.message.chat_id, context)
     await log_event(update, f"عرض تصنيفات القطع للفئة: {car}")
-
-
+    
 async def send_part_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     عرض صورة القطعة مع أزرار:
@@ -4016,16 +3575,8 @@ async def send_part_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
     delete_time = (now_saudi + timedelta(minutes=15)).strftime("%I:%M %p")
 
-    station = (
-        html.escape(str(row.get("Station Name", "غير معروف")))
-        if pd.notna(row.get("Station Name"))
-        else "غير معروف"
-    )
-    part_no = (
-        html.escape(str(row.get("Part No", "غير متوفر")))
-        if pd.notna(row.get("Part No"))
-        else "غير متوفر"
-    )
+    station = html.escape(str(row.get("Station Name", "غير معروف"))) if pd.notna(row.get("Station Name")) else "غير معروف"
+    part_no = html.escape(str(row.get("Part No", "غير متوفر"))) if pd.notna(row.get("Part No")) else "غير متوفر"
 
     caption = (
         f"`🧑‍💻 استعلام خاص بـ: {user_name}`\n"
@@ -4044,46 +3595,40 @@ async def send_part_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     safe_car = None
     if selected_car not in (None, "", "غير معروف"):
         safe_car = str(selected_car).replace(" ", "_")
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    "🗂 رجوع لقائمة تصنيفات القطع",
-                    callback_data=f"showparts_{safe_car}_{user_id}",
-                )
-            ]
-        )
+        buttons.append([
+            InlineKeyboardButton(
+                "🗂 رجوع لقائمة تصنيفات القطع",
+                callback_data=f"showparts_{safe_car}_{user_id}"
+            )
+        ])
 
     # 2) زر اختيار سيارة أخرى
     # نحاول أولاً نرجع لنفس البراند لو محفوظ، وإلا نفتح قائمة قطع الغيار من جديد
     parts_brand = user_data.get("parts_brand")
     if parts_brand:
         safe_brand = str(parts_brand).replace(" ", "_")
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    "🚗 اختيار سيارة أخرى",
-                    callback_data=f"pbrand_{safe_brand}_{user_id}",
-                )
-            ]
-        )
+        buttons.append([
+            InlineKeyboardButton(
+                "🚗 اختيار سيارة أخرى",
+                callback_data=f"pbrand_{safe_brand}_{user_id}"
+            )
+        ])
     else:
         # حالة احتياطية نرجع لقائمة استعلامات قطع الغيار
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    "🚗 اختيار سيارة أخرى", callback_data=f"parts_{user_id}"
-                )
-            ]
-        )
+        buttons.append([
+            InlineKeyboardButton(
+                "🚗 اختيار سيارة أخرى",
+                callback_data=f"parts_{user_id}"
+            )
+        ])
 
     # 3) رجوع للقائمة الرئيسية
-    buttons.append(
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-            )
-        ]
-    )
+    buttons.append([
+        InlineKeyboardButton(
+            "⬅️ رجوع للقائمة الرئيسية",
+            callback_data=f"back_main_{user_id}"
+        )
+    ])
 
     reply_markup = InlineKeyboardMarkup(buttons)
 
@@ -4096,8 +3641,7 @@ async def send_part_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     register_message(user_id, msg.message_id, query.message.chat_id, context)
-
-
+    
 async def car_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data.split("_")
@@ -4129,21 +3673,12 @@ async def car_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if brand:
         safe_brand = str(brand).replace(" ", "_")
         keyboard.append(
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع لقائمة السيارات",
-                    callback_data=f"mbrand_{safe_brand}_{user_id}",
-                )
-            ]
+            [InlineKeyboardButton("⬅️ رجوع لقائمة السيارات", callback_data=f"mbrand_{safe_brand}_{user_id}")]
         )
 
     # زر رجوع للقائمة الرئيسية
     keyboard.append(
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-            )
-        ]
+        [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
     )
 
     # النص مع اسم السيارة في الأعلى
@@ -4189,7 +3724,7 @@ async def km_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         requester = await context.bot.get_chat(user_id)
         await query.answer(
             f"❌ هذا الاستعلام خاص ب‏ {requester.first_name} {requester.last_name} - استخدم الأمر go",
-            show_alert=True,
+            show_alert=True
         )
         return
 
@@ -4201,14 +3736,12 @@ async def km_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 🔎 اختيار الصفوف المطابقة لنوع السيارة والمسافة
     results = df_maintenance[
-        (df_maintenance["car_type"] == car)
-        & (df_maintenance["km_service"].astype(str) == str(km_value))
+        (df_maintenance["car_type"] == car) &
+        (df_maintenance["km_service"].astype(str) == str(km_value))
     ]
 
     if results.empty:
-        await query.answer(
-            "⚠️ لا توجد بيانات صيانة لهذا الطراز عند هذه المسافة.", show_alert=True
-        )
+        await query.answer("⚠️ لا توجد بيانات صيانة لهذا الطراز عند هذه المسافة.", show_alert=True)
         return
 
     user_name = query.from_user.full_name
@@ -4241,35 +3774,19 @@ async def km_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         safe_car = str(car).replace(" ", "_")
 
         keyboard = [
-            [
-                InlineKeyboardButton(
-                    "عرض تكلفة الصيانة 💰", callback_data=f"cost_{i}_{user_id}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "عرض ملف الصيانة 📂", callback_data=f"brochure_{i}_{user_id}"
-                )
-            ],
+            [InlineKeyboardButton("عرض تكلفة الصيانة 💰", callback_data=f"cost_{i}_{user_id}")],
+            [InlineKeyboardButton("عرض ملف الصيانة 📂", callback_data=f"brochure_{i}_{user_id}")],
             # رجوع لقائمة مسافات الصيانة لنفس السيارة
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع لقائمة مسافات الصيانة",
-                    callback_data=f"car_{safe_car}_{user_id}",
-                )
-            ],
+            [InlineKeyboardButton("⬅️ رجوع لقائمة مسافات الصيانة", callback_data=f"car_{safe_car}_{user_id}")],
             # رجوع للقائمة الرئيسية
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                )
-            ],
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
         ]
+
 
         msg = await query.message.reply_text(
             text,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode=constants.ParseMode.MARKDOWN,
+            parse_mode=constants.ParseMode.MARKDOWN
         )
         register_message(user_id, msg.message_id, query.message.chat_id, context)
 
@@ -4279,14 +3796,14 @@ async def km_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await asyncio.sleep(1)
         await context.bot.delete_message(
-            chat_id=query.message.chat_id, message_id=query.message.message_id
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id
         )
     except Exception:
         pass
 
     # ✅ تفريغ الجلسة بعد انتهاء الاستخدام
     # context.user_data[user_id] = {}
-
 
 async def send_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -4297,7 +3814,7 @@ async def send_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
         requester = await context.bot.get_chat(user_id)
         await query.answer(
             f"❌ هذا الاستعلام خاص ب‏ {requester.first_name} {requester.last_name} - استخدم الأمر go",
-            show_alert=True,
+            show_alert=True
         )
         return
 
@@ -4358,11 +3875,7 @@ async def send_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📏 المسافة: {km_service} كم\n\n"
             f"🏢 الشركة:\n{company_name}"
             f"📞 للحجز اتصل:\n{company_phone}"
-            + (
-                f"📌 {PLACEHOLDER_TEXT}\n\n"
-                if PLACEHOLDER_TEXT in maintenance_action
-                else ""
-            )
+            + (f"📌 {PLACEHOLDER_TEXT}\n\n" if PLACEHOLDER_TEXT in maintenance_action else "")
             + f"`⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 15 دقيقة ({delete_time} / 🇸🇦)`"
         )
     else:
@@ -4382,22 +3895,14 @@ async def send_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         keyboard = query.message.reply_markup.inline_keyboard
         updated_keyboard = [
-            row
-            for row in keyboard
+            row for row in keyboard
             if not any(
-                (
-                    btn.callback_data
-                    and (
-                        "cost_" in btn.callback_data or "brochure_" in btn.callback_data
-                    )
-                )
+                (btn.callback_data and ("cost_" in btn.callback_data or "brochure_" in btn.callback_data))
                 for btn in row
             )
         ]
         await query.message.edit_reply_markup(
-            reply_markup=InlineKeyboardMarkup(updated_keyboard)
-            if updated_keyboard
-            else None
+            reply_markup=InlineKeyboardMarkup(updated_keyboard) if updated_keyboard else None
         )
     except Exception:
         pass
@@ -4407,22 +3912,9 @@ async def send_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 🔙 أزرار الرسالة الجديدة لتكلفة الصيانة:
     back_keyboard = InlineKeyboardMarkup(
         [
-            [
-                InlineKeyboardButton(
-                    "📄 عرض ملف الصيانة", callback_data=f"brochure_{index}_{user_id}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع لقائمة مسافات الصيانة",
-                    callback_data=f"car_{safe_car}_{user_id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                )
-            ],
+            [InlineKeyboardButton("📄 عرض ملف الصيانة", callback_data=f"brochure_{index}_{user_id}")],
+            [InlineKeyboardButton("⬅️ رجوع لقائمة مسافات الصيانة", callback_data=f"car_{safe_car}_{user_id}")],
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")],
         ]
     )
 
@@ -4430,7 +3922,7 @@ async def send_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=query.message.chat_id,
         text=caption,
         parse_mode=constants.ParseMode.MARKDOWN,
-        reply_markup=back_keyboard,
+        reply_markup=back_keyboard
     )
     register_message(user_id, msg.message_id, query.message.chat_id, context)
 
@@ -4442,8 +3934,7 @@ async def send_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # فقط نمسح القيم المؤقتة لو حاب في المستقبل
         for k in ["km_value", "maintenance_results"]:
             user_data.pop(k, None)
-
-
+            
 async def maintenance_brand_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     استقبال ضغط زر براند الصيانة:
@@ -4465,9 +3956,9 @@ async def maintenance_brand_choice(update: Update, context: ContextTypes.DEFAULT
 
     # استخراج السيارات لهذا البراند من شيت الصيانة
     cars = (
-        df_maintenance[df_maintenance["brand"].astype(str).str.strip() == brand][
-            "car_type"
-        ]
+        df_maintenance[
+            df_maintenance["brand"].astype(str).str.strip() == brand
+        ]["car_type"]
         .dropna()
         .astype(str)
         .str.strip()
@@ -4485,16 +3976,8 @@ async def maintenance_brand_choice(update: Update, context: ContextTypes.DEFAULT
         )
 
         keyboard = [
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع لاختيار براند آخر", callback_data=f"maintenance_{user_id}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                )
-            ],
+            [InlineKeyboardButton("⬅️ رجوع لاختيار براند آخر", callback_data=f"maintenance_{user_id}")],
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")],
         ]
 
         msg = await query.edit_message_text(
@@ -4510,26 +3993,19 @@ async def maintenance_brand_choice(update: Update, context: ContextTypes.DEFAULT
     keyboard = [
         [
             InlineKeyboardButton(
-                car, callback_data=f"car_{car.replace(' ', '_')}_{user_id}"
+                car,
+                callback_data=f"car_{car.replace(' ', '_')}_{user_id}"
             )
         ]
         for car in cars
     ]
     # زر رجوع لاختيار براند آخر
     keyboard.append(
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع لاختيار براند آخر", callback_data=f"maintenance_{user_id}"
-            )
-        ]
+        [InlineKeyboardButton("⬅️ رجوع لاختيار براند آخر", callback_data=f"maintenance_{user_id}")]
     )
     # زر رجوع للقائمة الرئيسية
     keyboard.append(
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-            )
-        ]
+        [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
     )
 
     msg = await query.edit_message_text(
@@ -4586,9 +4062,7 @@ async def parts_brand_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     car_col = next((c for c in car_col_candidates if c in parts_df.columns), None)
 
     if not car_col:
-        await query.answer(
-            "⚠️ لا توجد أعمدة فئات سيارات معرفة لهذا البراند.", show_alert=True
-        )
+        await query.answer("⚠️ لا توجد أعمدة فئات سيارات معرفة لهذا البراند.", show_alert=True)
         return
 
     car_names = (
@@ -4614,20 +4088,10 @@ async def parts_brand_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             f"`⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 15 دقيقة ({delete_time} / 🇸🇦)`"
         )
 
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "⬅️ رجوع لاختيار براند آخر", callback_data=f"parts_{user_id}"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                    )
-                ],
-            ]
-        )
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ رجوع لاختيار براند آخر", callback_data=f"parts_{user_id}")],
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")],
+        ])
 
         try:
             if getattr(query.message, "text", None):
@@ -4662,18 +4126,10 @@ async def parts_brand_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # أزرار رجوع
     keyboard.append(
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع لاختيار براند آخر", callback_data=f"consumable_{user_id}"
-            )
-        ]
+        [InlineKeyboardButton("⬅️ رجوع لاختيار براند آخر", callback_data=f"consumable_{user_id}")]
     )
     keyboard.append(
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-            )
-        ]
+        [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
     )
 
     text = (
@@ -4709,7 +4165,6 @@ async def parts_brand_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     register_message(user_id, msg.message_id, query.message.chat_id, context)
     await log_event(update, f"عرض سيارات قطع الغيار للبراند: {brand}")
 
-
 async def save_parts(df: pd.DataFrame):
     """حفظ شيت قطع الغيار parts"""
     global df_parts
@@ -4717,9 +4172,11 @@ async def save_parts(df: pd.DataFrame):
 
     async with EXCEL_LOCK:
         await asyncio.to_thread(
-            write_excel_background, "bot_data.xlsx", df_parts, "parts"
+            write_excel_background,
+            "bot_data.xlsx",
+            df_parts,
+            "parts"
         )
-
 
 async def send_brochure(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -4730,7 +4187,7 @@ async def send_brochure(update: Update, context: ContextTypes.DEFAULT_TYPE):
         requester = await context.bot.get_chat(user_id)
         await query.answer(
             f"❌ هذا الاستعلام خاص ب‏ {requester.first_name} {requester.last_name} - استخدم الأمر /go",
-            show_alert=True,
+            show_alert=True
         )
         return
 
@@ -4753,22 +4210,9 @@ async def send_brochure(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 3) رجوع للقائمة الرئيسية
     back_keyboard = InlineKeyboardMarkup(
         [
-            [
-                InlineKeyboardButton(
-                    "💰 عرض تكلفة الصيانة", callback_data=f"cost_{index}_{user_id}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع لقائمة مسافات الصيانة",
-                    callback_data=f"car_{safe_car}_{user_id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                )
-            ],
+            [InlineKeyboardButton("💰 عرض تكلفة الصيانة", callback_data=f"cost_{index}_{user_id}")],
+            [InlineKeyboardButton("⬅️ رجوع لقائمة مسافات الصيانة", callback_data=f"car_{safe_car}_{user_id}")],
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")],
         ]
     )
 
@@ -4818,26 +4262,17 @@ async def send_brochure(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         keyboard = query.message.reply_markup.inline_keyboard
         updated_keyboard = [
-            row
-            for row in keyboard
+            row for row in keyboard
             if not any(
-                (
-                    btn.callback_data
-                    and (
-                        "brochure_" in btn.callback_data or "cost_" in btn.callback_data
-                    )
-                )
+                (btn.callback_data and ("brochure_" in btn.callback_data or "cost_" in btn.callback_data))
                 for btn in row
             )
         ]
         await query.message.edit_reply_markup(
-            reply_markup=InlineKeyboardMarkup(updated_keyboard)
-            if updated_keyboard
-            else None
+            reply_markup=InlineKeyboardMarkup(updated_keyboard) if updated_keyboard else None
         )
     except Exception:
         pass
-
 
 async def handle_service_centers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -4846,9 +4281,7 @@ async def handle_service_centers(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data.setdefault(user_id, {})["service_used"] = True
 
     try:
-        await context.bot.delete_message(
-            chat_id=query.message.chat_id, message_id=query.message.message_id
-        )
+        await context.bot.delete_message(chat_id=query.message.chat_id, message_id=query.message.message_id)
     except Exception:
         pass
 
@@ -4868,40 +4301,26 @@ async def handle_service_centers(update: Update, context: ContextTypes.DEFAULT_T
                 chat_id=query.message.chat_id,
                 video=video_file,
                 caption=caption,
-                parse_mode=constants.ParseMode.MARKDOWN,
+                parse_mode=constants.ParseMode.MARKDOWN
             )
             context.user_data[user_id]["map_msg_id"] = msg1.message_id
             register_message(user_id, msg1.message_id, query.message.chat_id, context)
 
     # ✅ زرّين + زر رجوع في رسالة واحدة
     keyboard = [
-        [
-            InlineKeyboardButton(
-                "📍 مواقع فروع شركة شيري", callback_data=f"branches_{user_id}"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🔧 المتاجر ومراكز الصيانة المستقلة",
-                callback_data=f"independent_{user_id}",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}"
-            )
-        ],
+        [InlineKeyboardButton("📍 مواقع فروع شركة شيري", callback_data=f"branches_{user_id}")],
+        [InlineKeyboardButton("🔧 المتاجر ومراكز الصيانة المستقلة", callback_data=f"independent_{user_id}")],
+        [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}")]
     ]
 
     msg2 = await context.bot.send_message(
         chat_id=query.message.chat_id,
         text="🛠️ الرجاء اختيار أحد الخيارات التالية:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
     register_message(user_id, msg2.message_id, query.message.chat_id, context)
 
     await log_event(update, "عرض مراكز الخدمة الرسمية للمستخدم")
-
 
 async def handle_branch_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -4913,7 +4332,8 @@ async def handle_branch_list(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if map_msg_id:
         try:
             await context.bot.delete_message(
-                chat_id=query.message.chat_id, message_id=map_msg_id
+                chat_id=query.message.chat_id,
+                message_id=map_msg_id
             )
         except Exception:
             pass
@@ -4923,14 +4343,10 @@ async def handle_branch_list(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         old_keyboard = query.message.reply_markup.inline_keyboard
         new_keyboard = [
-            row
-            for row in old_keyboard
+            row for row in old_keyboard
             if not any(
                 btn.callback_data
-                and (
-                    "branches_" in btn.callback_data
-                    or "independent_" in btn.callback_data
-                )
+                and ("branches_" in btn.callback_data or "independent_" in btn.callback_data)
                 for btn in row
             )
         ]
@@ -4946,9 +4362,7 @@ async def handle_branch_list(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     header = f"`🧑‍💼 استعلام خاص بـ {user_name}`"
     middle = "🚨 مواقع مراكز الصيانة شيري CHERY"
-    footer = (
-        f"\n\n`⏳ سيتم حذف هذا الاستعلام تلقائياً خلال 15 دقيقة ({delete_time} / 🇸🇦)`"
-    )
+    footer = f"\n\n`⏳ سيتم حذف هذا الاستعلام تلقائياً خلال 15 دقيقة ({delete_time} / 🇸🇦)`"
 
     # ==========================================================
     # 🛑 حماية مهمة: branches قد تكون dict وليس list → تسبب خطأ
@@ -4990,9 +4404,7 @@ async def handle_branch_list(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if url and url.startswith("http"):
             keyboard_rows.append([InlineKeyboardButton(label, url=url)])
         else:
-            keyboard_rows.append(
-                [InlineKeyboardButton(label, callback_data=f"not_ready_{user_id}")]
-            )
+            keyboard_rows.append([InlineKeyboardButton(label, callback_data=f"not_ready_{user_id}")])
 
     if not keyboard_rows:
         await query.answer("❌ لا يوجد فروع صالحة للعرض حالياً.", show_alert=True)
@@ -5000,21 +4412,12 @@ async def handle_branch_list(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # زر المراكز المستقلة
     keyboard_rows.append(
-        [
-            InlineKeyboardButton(
-                "🔧 المتاجر ومراكز الصيانة المستقلة",
-                callback_data=f"independent_{user_id}",
-            )
-        ]
+        [InlineKeyboardButton("🔧 المتاجر ومراكز الصيانة المستقلة", callback_data=f"independent_{user_id}")]
     )
 
     # زر الرجوع
     keyboard_rows.append(
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}"
-            )
-        ]
+        [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}")]
     )
 
     msg = await context.bot.send_message(
@@ -5027,7 +4430,6 @@ async def handle_branch_list(update: Update, context: ContextTypes.DEFAULT_TYPE)
     register_message(user_id, msg.message_id, query.message.chat_id, context)
     await log_event(update, "عرض قائمة فروع مراكز شيري الرسمية")
 
-
 async def handle_independent(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = int(query.data.split("_")[1])
@@ -5036,9 +4438,7 @@ async def handle_independent(update: Update, context: ContextTypes.DEFAULT_TYPE)
     map_msg_id = context.user_data.get(user_id, {}).get("map_msg_id")
     if map_msg_id:
         try:
-            await context.bot.delete_message(
-                chat_id=query.message.chat_id, message_id=map_msg_id
-            )
+            await context.bot.delete_message(chat_id=query.message.chat_id, message_id=map_msg_id)
         except Exception:
             pass
         context.user_data[user_id]["map_msg_id"] = None
@@ -5047,21 +4447,15 @@ async def handle_independent(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         keyboard = query.message.reply_markup.inline_keyboard
         updated_keyboard = [
-            row
-            for row in keyboard
+            row for row in keyboard
             if not any(
                 btn.callback_data
-                and (
-                    "independent_" in btn.callback_data
-                    or "branches_" in btn.callback_data
-                )
+                and ("independent_" in btn.callback_data or "branches_" in btn.callback_data)
                 for btn in row
             )
         ]
         await query.message.edit_reply_markup(
-            reply_markup=InlineKeyboardMarkup(updated_keyboard)
-            if updated_keyboard
-            else None
+            reply_markup=InlineKeyboardMarkup(updated_keyboard) if updated_keyboard else None
         )
     except Exception:
         pass
@@ -5087,7 +4481,7 @@ async def handle_independent(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 chat_id=query.message.chat_id,
                 photo=image_file,
                 caption=caption,
-                parse_mode=constants.ParseMode.MARKDOWN,
+                parse_mode=constants.ParseMode.MARKDOWN
             )
             register_message(user_id, msg1.message_id, query.message.chat_id, context)
 
@@ -5100,20 +4494,12 @@ async def handle_independent(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # ✅ إضافة زر "مواقع فروع شركة شيري" أسفل المدن
     city_buttons.append(
-        [
-            InlineKeyboardButton(
-                "📍 مواقع فروع شركة شيري", callback_data=f"branches_{user_id}"
-            )
-        ]
+        [InlineKeyboardButton("📍 مواقع فروع شركة شيري", callback_data=f"branches_{user_id}")]
     )
 
     # ✅ زر رجوع للقائمة الرئيسية أسفل المدن
     city_buttons.append(
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}"
-            )
-        ]
+        [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}")]
     )
 
     msg2 = await context.bot.send_message(
@@ -5138,44 +4524,27 @@ async def set_city(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.setdefault(user_id, {})["city"] = city
 
     try:
-        await context.bot.delete_message(
-            chat_id=query.message.chat_id, message_id=query.message.message_id
-        )
+        await context.bot.delete_message(chat_id=query.message.chat_id, message_id=query.message.message_id)
     except Exception:
         pass
 
     keyboard = [
-        [
-            InlineKeyboardButton(
-                "✅ قائمة المراكز المعتمدة", callback_data=f"show_centers_{user_id}"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🛒 قائمة متاجر قطع الغيار", callback_data=f"show_stores_{user_id}"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}"
-            )
-        ],
+        [InlineKeyboardButton("✅ قائمة المراكز المعتمدة", callback_data=f"show_centers_{user_id}")],
+        [InlineKeyboardButton("🛒 قائمة متاجر قطع الغيار", callback_data=f"show_stores_{user_id}")],
+        [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}")]
     ]
 
     msg = await context.bot.send_message(
         chat_id=query.message.chat_id,
         text=f"`🧑‍💻 استعلام خاص بـ {query.from_user.full_name}`\n\n🔍 اختر نوع الخدمة بعد اختيار المدينة ({city}):",
         reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode=constants.ParseMode.MARKDOWN,
+        parse_mode=constants.ParseMode.MARKDOWN
     )
 
     register_message(user_id, msg.message_id, query.message.chat_id, context)
     await log_event(update, f"اختار مدينة: {city}")
 
-
-async def _send_independent_results(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, filter_type: str
-):
+async def _send_independent_results(update: Update, context: ContextTypes.DEFAULT_TYPE, filter_type: str):
     """
     عرض نتائج المراكز / المتاجر المستقلة مع صورة المتجر (إن وجدت) + رابط الموقع من ملف Excel.
     يعتمد على شيت independent بالأعمدة:
@@ -5186,32 +4555,24 @@ async def _send_independent_results(
     city = context.user_data.get(user_id, {}).get("city")
 
     if not city:
-        await query.answer(
-            "❌ لم يتم تحديد المدينة. استخدم /go لإعادة التحديد.", show_alert=True
-        )
+        await query.answer("❌ لم يتم تحديد المدينة. استخدم /go لإعادة التحديد.", show_alert=True)
         return
 
     # فلترة حسب المدينة ونوع السجل (مثلاً: 'مركز' أو 'متجر')
     try:
         results = df_independent[
-            (df_independent["city"] == city)
-            & (df_independent["type"].astype(str).str.contains(filter_type))
+            (df_independent["city"] == city) &
+            (df_independent["type"].astype(str).str.contains(filter_type))
         ]
     except Exception as e:
         logging.error(f"[INDEPENDENT] خطأ أثناء فلترة البيانات: {e}")
-        await query.answer(
-            "❌ حدث خطأ أثناء قراءة بيانات المراكز المستقلة.", show_alert=True
-        )
+        await query.answer("❌ حدث خطأ أثناء قراءة بيانات المراكز المستقلة.", show_alert=True)
         return
 
     if results.empty:
-        msg = await query.message.reply_text(
-            f"🚫 لا توجد بيانات {filter_type} حالياً في {city}."
-        )
+        msg = await query.message.reply_text(f"🚫 لا توجد بيانات {filter_type} حالياً في {city}.")
         register_message(user_id, msg.message_id, query.message.chat_id, context)
-        await log_event(
-            update, f"🚫 لا توجد نتائج {filter_type} في {city}", level="error"
-        )
+        await log_event(update, f"🚫 لا توجد نتائج {filter_type} في {city}", level="error")
         return
 
     user_name = query.from_user.full_name or "العميل"
@@ -5238,7 +4599,7 @@ async def _send_independent_results(
             f"<code>🧑‍💻 استعلام خاص بـ {user_name_safe}</code>\n"
             f"<code>🏙️ المدينة: {city_safe}</code>\n\n"
             f"🏪 الاسم: {name_safe}\n"
-            f"🔧 التصنيف: {result_type_safe}\n"  # 👈 النوع (متجر / مركز)
+            f"🔧 التصنيف: {result_type_safe}\n"   # 👈 النوع (متجر / مركز)
             f"📞 الهاتف: {phone_safe}\n"
         )
 
@@ -5247,16 +4608,16 @@ async def _send_independent_results(
             safe_url = location_url.strip()
             safe_url_escaped = html.escape(safe_url)
             text += (
-                f'🌐 <a href="{safe_url_escaped}">اضغط هنا لعرض الموقع والتفاصيل </a>\n'
+                f"🌐 <a href=\"{safe_url_escaped}\">اضغط هنا لعرض الموقع والتفاصيل </a>\n"
             )
 
-        text += f"\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 15 دقيقة ({delete_time} / 🇸🇦)</code>"
+        text += (
+            f"\n<code>⏳ سيتم حذف هذا الاستعلام تلقائيًا خلال 15 دقيقة ({delete_time} / 🇸🇦)</code>"
+        )
 
         # 🖼 إذا عندنا رابط صورة صالح نرسلها كصورة + كابشن، غير كذا نرسل نص فقط
         try:
-            if isinstance(image_url, str) and image_url.strip().lower().startswith(
-                "http"
-            ):
+            if isinstance(image_url, str) and image_url.strip().lower().startswith("http"):
                 msg = await context.bot.send_photo(
                     chat_id=query.message.chat_id,
                     photo=image_url.strip(),
@@ -5265,7 +4626,8 @@ async def _send_independent_results(
                 )
             else:
                 msg = await query.message.reply_text(
-                    text, parse_mode=constants.ParseMode.HTML
+                    text,
+                    parse_mode=constants.ParseMode.HTML
                 )
             register_message(user_id, msg.message_id, query.message.chat_id, context)
         except Exception as e:
@@ -5273,16 +4635,14 @@ async def _send_independent_results(
             try:
                 # fallback: إرسال نص فقط لو الصورة فشلت
                 msg = await query.message.reply_text(
-                    text, parse_mode=constants.ParseMode.HTML
+                    text,
+                    parse_mode=constants.ParseMode.HTML
                 )
-                register_message(
-                    user_id, msg.message_id, query.message.chat_id, context
-                )
+                register_message(user_id, msg.message_id, query.message.chat_id, context)
             except Exception as e2:
                 logging.error(f"[INDEPENDENT] فشل إرسال نتيجة نصية لـ {name}: {e2}")
 
     await log_event(update, f"✅ عرض نتائج {filter_type} في {city}")
-
 
 async def show_center_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -5292,21 +4652,15 @@ async def show_center_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         keyboard = query.message.reply_markup.inline_keyboard
         updated_keyboard = [
-            row
-            for row in keyboard
+            row for row in keyboard
             if not any(
                 btn.callback_data
-                and (
-                    "show_centers_" in btn.callback_data
-                    or "show_stores_" in btn.callback_data
-                )
+                and ("show_centers_" in btn.callback_data or "show_stores_" in btn.callback_data)
                 for btn in row
             )
         ]
         await query.message.edit_reply_markup(
-            reply_markup=InlineKeyboardMarkup(updated_keyboard)
-            if updated_keyboard
-            else None
+            reply_markup=InlineKeyboardMarkup(updated_keyboard) if updated_keyboard else None
         )
     except Exception:
         pass
@@ -5317,21 +4671,9 @@ async def show_center_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 🔁 بعد عرض النتائج: زر "متاجر" + "رجوع"
     back_keyboard = InlineKeyboardMarkup(
         [
-            [
-                InlineKeyboardButton(
-                    "🛒 قائمة متاجر قطع الغيار", callback_data=f"show_stores_{user_id}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "🏙️ اختيار مدينة أخرى", callback_data=f"independent_{user_id}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}"
-                )
-            ],
+            [InlineKeyboardButton("🛒 قائمة متاجر قطع الغيار", callback_data=f"show_stores_{user_id}")],
+            [InlineKeyboardButton("🏙️ اختيار مدينة أخرى", callback_data=f"independent_{user_id}")],
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}")],
         ]
     )
 
@@ -5343,9 +4685,8 @@ async def show_center_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await log_event(
         update,
-        f"📜 عرض قائمة المراكز المعتمدة في {context.user_data[user_id].get('city', 'غير معروفة')}",
+        f"📜 عرض قائمة المراكز المعتمدة في {context.user_data[user_id].get('city', 'غير معروفة')}"
     )
-
 
 async def show_store_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -5355,21 +4696,15 @@ async def show_store_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         keyboard = query.message.reply_markup.inline_keyboard
         updated_keyboard = [
-            row
-            for row in keyboard
+            row for row in keyboard
             if not any(
                 btn.callback_data
-                and (
-                    "show_centers_" in btn.callback_data
-                    or "show_stores_" in btn.callback_data
-                )
+                and ("show_centers_" in btn.callback_data or "show_stores_" in btn.callback_data)
                 for btn in row
             )
         ]
         await query.message.edit_reply_markup(
-            reply_markup=InlineKeyboardMarkup(updated_keyboard)
-            if updated_keyboard
-            else None
+            reply_markup=InlineKeyboardMarkup(updated_keyboard) if updated_keyboard else None
         )
     except Exception:
         pass
@@ -5380,21 +4715,9 @@ async def show_store_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 🔁 بعد عرض النتائج: زر "مراكز" + "رجوع"
     back_keyboard = InlineKeyboardMarkup(
         [
-            [
-                InlineKeyboardButton(
-                    "✅ قائمة المراكز المعتمدة", callback_data=f"show_centers_{user_id}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "🏙️ اختيار مدينة أخرى", callback_data=f"independent_{user_id}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}"
-                )
-            ],
+            [InlineKeyboardButton("✅ قائمة المراكز المعتمدة", callback_data=f"show_centers_{user_id}")],
+            [InlineKeyboardButton("🏙️ اختيار مدينة أخرى", callback_data=f"independent_{user_id}")],
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back:main:{user_id}")],
         ]
     )
 
@@ -5406,9 +4729,8 @@ async def show_store_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await log_event(
         update,
-        f"📜 عرض قائمة المتاجر في {context.user_data[user_id].get('city', 'غير معروفة')}",
+        f"📜 عرض قائمة المتاجر في {context.user_data[user_id].get('city', 'غير معروفة')}"
     )
-
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -5432,13 +4754,15 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             if getattr(query.message, "text", None):
                 msg = await query.edit_message_text(
-                    "اختر الخدمة المطلوبة:", reply_markup=keyboard
+                    "اختر الخدمة المطلوبة:",
+                    reply_markup=keyboard
                 )
             else:
                 raise Exception("message has no text")
         except Exception:
             msg = await query.message.reply_text(
-                "اختر الخدمة المطلوبة:", reply_markup=keyboard
+                "اختر الخدمة المطلوبة:",
+                reply_markup=keyboard
             )
 
         register_message(user_id, msg.message_id, query.message.chat_id, context)
@@ -5486,14 +4810,14 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if raw_data.startswith("back:"):
         await handle_back(update, context)
         return
-
-    # ✅ معالجة خاصة لزر showparts_ (لأن الاسم فيه مسافات تتحول إلى _)
+ 
+     # ✅ معالجة خاصة لزر showparts_ (لأن الاسم فيه مسافات تتحول إلى _)
     if raw_data.startswith("showparts_"):
         try:
-            data = raw_data[len("showparts_") :]
+            data = raw_data[len("showparts_"):]
             last_underscore = data.rfind("_")
             selected_car = data[:last_underscore].replace("_", " ").strip()
-            user_id = int(data[last_underscore + 1 :])
+            user_id = int(data[last_underscore + 1:])
 
             context.user_data.setdefault(user_id, {})
             context.user_data[user_id]["selected_car"] = selected_car
@@ -5514,9 +4838,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if raw_data.startswith("catpart_"):
         # شكل الداتا: catpart_keyword_userid
         if len(data) < 3:
-            await query.answer(
-                "⚠️ بيانات غير صالحة، يرجى المحاولة مجددًا.", show_alert=True
-            )
+            await query.answer("⚠️ بيانات غير صالحة، يرجى المحاولة مجددًا.", show_alert=True)
             return
         _, keyword, user_id_str = data
         action = "catpart"
@@ -5524,13 +4846,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_id = int(user_id_str)
         except ValueError:
             logging.error(f"🔴 فشل في تحليل user_id في catpart: {user_id_str}")
-            await query.answer(
-                "⚠️ خطأ في البيانات، يرجى المحاولة مجددًا.", show_alert=True
-            )
+            await query.answer("⚠️ خطأ في البيانات، يرجى المحاولة مجددًا.", show_alert=True)
             return
 
     elif raw_data.startswith("faultcat_"):
-        # شكل الداتا: faultcat_idx_userid
+    # شكل الداتا: faultcat_idx_userid
         if len(data) < 3:
             await query.answer("❌ بيانات غير صالحة لهذا الاختيار.", show_alert=True)
             return
@@ -5543,7 +4863,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     else:
-        # باقي الأنواع الأخرى مثل parts_123 أو suggestion_123 أو faults_123 أو maintenance_123 أو coming_soon_123 ...
+    # باقي الأنواع الأخرى مثل parts_123 أو suggestion_123 أو faults_123 أو maintenance_123 أو coming_soon_123 ...
         valid = True
 
         if len(data) < 2:
@@ -5551,19 +4871,17 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             valid = False
 
         if valid:
-            # ✅ آخر جزء دائما هو user_id حتى لو action فيه _
+        # ✅ آخر جزء دائما هو user_id حتى لو action فيه _
             user_id_str = data[-1]
             try:
                 user_id = int(user_id_str)
             except ValueError:
                 logging.error(f"🔴 فشل في تحليل user_id: {user_id_str}")
-                await query.answer(
-                    "⚠️ خطأ في البيانات، يرجى المحاولة مجددًا.", show_alert=True
-                )
+                await query.answer("⚠️ خطأ في البيانات، يرجى المحاولة مجددًا.", show_alert=True)
                 valid = False
 
         if valid:
-            # ✅ action قد يكون كلمة واحدة أو كلمتين مثل coming_soon
+        # ✅ action قد يكون كلمة واحدة أو كلمتين مثل coming_soon
             action = "_".join(data[:-1])
 
     chat = query.message.chat
@@ -5586,14 +4904,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "عند تجهيز قاعدة بيانات الأعطال سوف تظهر لك قائمة بالأنظمة والأعراض والحلول بإذن الله."
             )
             keyboard = [
-                [
-                    InlineKeyboardButton(
-                        "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                    )
-                ]
+                [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
             ]
             msg = await query.edit_message_text(
-                text, reply_markup=InlineKeyboardMarkup(keyboard)
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
             register_message(user_id, msg.message_id, query.message.chat_id, context)
             await log_event(update, "محاولة فتح خدمة الاعطال الشائعة بدون بيانات")
@@ -5601,7 +4916,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # تجهيز قائمة الانظمة / التصنيفات
         categories = (
-            faults_df["category"].dropna().astype(str).str.strip().unique().tolist()
+            faults_df["category"]
+            .dropna()
+            .astype(str)
+            .str.strip()
+            .unique()
+            .tolist()
         )
 
         if not categories:
@@ -5611,14 +4931,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "فضلاً قم بإضافة بيانات في شيت faults."
             )
             keyboard = [
-                [
-                    InlineKeyboardButton(
-                        "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                    )
-                ]
+                [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
             ]
             msg = await query.edit_message_text(
-                text, reply_markup=InlineKeyboardMarkup(keyboard)
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
             register_message(user_id, msg.message_id, query.message.chat_id, context)
             return
@@ -5637,11 +4954,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # زر رجوع
         keyboard.append(
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                )
-            ]
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
         )
 
         text = (
@@ -5654,7 +4967,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await query.edit_message_text(
             text,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode=constants.ParseMode.MARKDOWN,
+            parse_mode=constants.ParseMode.MARKDOWN
         )
         register_message(user_id, msg.message_id, query.message.chat_id, context)
         await log_event(update, "فتح قائمة الاعطال الشائعة الرئيسية")
@@ -5672,10 +4985,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         categories = user_store.get("fault_categories", [])
 
         if not categories or idx < 0 or idx >= len(categories):
-            await query.answer(
-                "❌ لم يتم العثور على هذا التصنيف. حاول من جديد عبر القائمة الرئيسية.",
-                show_alert=True,
-            )
+            await query.answer("❌ لم يتم العثور على هذا التصنيف. حاول من جديد عبر القائمة الرئيسية.", show_alert=True)
             return
 
         selected_category = categories[idx]
@@ -5691,8 +5001,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # تصفية الاعطال حسب التصنيف
         subset = faults_df[
-            faults_df["category"].astype(str).str.strip()
-            == str(selected_category).strip()
+            faults_df["category"].astype(str).str.strip() == str(selected_category).strip()
         ]
 
         if subset.empty:
@@ -5736,23 +5045,16 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             msg = await query.message.reply_text(
-                text, parse_mode=constants.ParseMode.MARKDOWN
+                text,
+                parse_mode=constants.ParseMode.MARKDOWN
             )
             register_message(user_id, msg.message_id, query.message.chat_id, context)
 
-            # 2) رجوع للقائمة الرئيسية
+                # 2) رجوع للقائمة الرئيسية
         back_keyboard = InlineKeyboardMarkup(
             [
-                [
-                    InlineKeyboardButton(
-                        "⬅️ العودة لقائمة الأعطال", callback_data=f"faults_{user_id}"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                    )
-                ],
+                [InlineKeyboardButton("⬅️ العودة لقائمة الأعطال", callback_data=f"faults_{user_id}")],
+                [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")],
             ]
         )
 
@@ -5760,7 +5062,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         back_msg = await context.bot.send_message(
             chat_id=query.message.chat_id,
             text="يمكنك المتابعة من خلال الخيارات التالية:",
-            reply_markup=back_keyboard,
+            reply_markup=back_keyboard
         )
 
         register_message(user_id, back_msg.message_id, query.message.chat_id, context)
@@ -5802,17 +5104,14 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = [
                 [
                     InlineKeyboardButton(
-                        car, callback_data=f"car_{car.replace(' ', '_')}_{user_id}"
+                        car,
+                        callback_data=f"car_{car.replace(' ', '_')}_{user_id}"
                     )
                 ]
                 for car in cars
             ]
             keyboard.append(
-                [
-                    InlineKeyboardButton(
-                        "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                    )
-                ]
+                [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
             )
 
             msg = await query.edit_message_text(
@@ -5830,18 +5129,15 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append(
                 [
                     InlineKeyboardButton(
-                        brand, callback_data=f"mbrand_{safe_brand}_{user_id}"
+                        brand,
+                        callback_data=f"mbrand_{safe_brand}_{user_id}"
                     )
                 ]
             )
 
         # زر رجوع للقائمة الرئيسية
         keyboard.append(
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                )
-            ]
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
         )
 
         msg = await query.edit_message_text(
@@ -5852,28 +5148,24 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await log_event(update, "فتح قائمة الصيانة الدورية حسب البراند")
         return
 
+
     if action == "parts":
         keyboard = [
             # استعلام القطع الاستهلاكية (يبقى كما هو)
-            [
-                InlineKeyboardButton(
-                    "🧩 استعلام قطع الغيار الاستهلاكية",
-                    callback_data=f"consumable_{user_id}",
-                )
-            ],
+            [InlineKeyboardButton(
+                "🧩 استعلام قطع الغيار الاستهلاكية",
+                callback_data=f"consumable_{user_id}"
+            )],
             # استعلام قطع غيار عام → يفتح موقع شيري مباشرة كرابط
-            [
-                InlineKeyboardButton(
-                    "🧩 استعلام قطع غيار عام (موقع شيري الرسمي)",
-                    url="https://www.cheryksa.com/ar/spareparts",
-                )
-            ],
+            [InlineKeyboardButton(
+                "🧩 استعلام قطع غيار عام (موقع شيري الرسمي)",
+                url="https://www.cheryksa.com/ar/spareparts"
+            )],
             # زر الرجوع للقائمة الرئيسية
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                )
-            ],
+            [InlineKeyboardButton(
+                "⬅️ رجوع للقائمة الرئيسية",
+                callback_data=f"back_main_{user_id}"
+            )],
         ]
 
         msg = await query.edit_message_text(
@@ -5887,19 +5179,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action in ("external", "extparts"):
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=15)).strftime("%I:%M %p")
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "🔗 فتح موقع الاستعلام",
-                    url="https://www.cheryksa.com/ar/spareparts",
-                )
-            ]
-        ]
+        keyboard = [[InlineKeyboardButton("🔗 فتح موقع الاستعلام", url="https://www.cheryksa.com/ar/spareparts")]]
         msg = await query.edit_message_text(
             "🌐 تم تجهيز الرابط، اضغط الزر بالأسفل للانتقال إلى موقع استعلام قطع غيار شيري الرسمي:\n\n"
             f"`⏳ سيتم حذف هذا الاستعلام تلقائياً خلال 15 دقيقة ({delete_time} / 🇸🇦)`",
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode=constants.ParseMode.MARKDOWN,
+            parse_mode=constants.ParseMode.MARKDOWN
         )
         register_message(user_id, msg.message_id, query.message.chat_id, context)
         await log_event(update, "تم فتح رابط قطع الغيار الخارجي (extparts)")
@@ -5915,7 +5200,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         brands = []
         if not parts_df.empty and "brand" in parts_df.columns:
             brands = (
-                parts_df["brand"].dropna().astype(str).str.strip().unique().tolist()
+                parts_df["brand"]
+                .dropna()
+                .astype(str)
+                .str.strip()
+                .unique()
+                .tolist()
             )
             brands = [b for b in brands if b]
 
@@ -5925,19 +5215,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for brand in brands:
                 safe_brand = brand.replace(" ", "_")
                 keyboard.append(
-                    [
-                        InlineKeyboardButton(
-                            brand, callback_data=f"pbrand_{safe_brand}_{user_id}"
-                        )
-                    ]
+                    [InlineKeyboardButton(brand, callback_data=f"pbrand_{safe_brand}_{user_id}")]
                 )
 
             keyboard.append(
-                [
-                    InlineKeyboardButton(
-                        "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                    )
-                ]
+                [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
             )
 
             msg = await query.edit_message_text(
@@ -5956,24 +5238,14 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append([InlineKeyboardButton(car, callback_data=callback_data)])
 
         # زر رجوع في اسفل القائمة
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                )
-            ]
-        )
+        keyboard.append([InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")])
 
         if not unique_cars:
             await query.edit_message_text("❌ لا توجد سيارات متاحة في قاعدة البيانات.")
-            await log_event(
-                update, "❌ لا توجد سيارات متاحة في قاعدة البيانات (consumable)"
-            )
+            await log_event(update, "❌ لا توجد سيارات متاحة في قاعدة البيانات (consumable)")
             return
 
-        msg = await query.edit_message_text(
-            "🚗 اختر فئة السيارة المطلوبة:", reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        msg = await query.edit_message_text("🚗 اختر فئة السيارة المطلوبة:", reply_markup=InlineKeyboardMarkup(keyboard))
         register_message(user_id, msg.message_id, query.message.chat_id, context)
         await log_event(update, "عرض قائمة السيارات للقطع الاستهلاكية (بدون براندات)")
         return
@@ -5996,13 +5268,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
 
         if matches.empty:
-            await query.answer(
-                "❌ لم يتم توفير بيانات لهذا التصنيف بعد.\nهذا الطراز قيد الإعداد من فريق GO.",
-                show_alert=True,
-            )
+            await query.answer("❌ لم يتم توفير بيانات لهذا التصنيف بعد.\nهذا الطراز قيد الإعداد من فريق GO.", show_alert=True)
             return
 
-        # 📌 ➤ إضافة بسيطة فقط: حفظ آخر صورة في هذا التصنيف
+    # 📌 ➤ إضافة بسيطة فقط: حفظ آخر صورة في هذا التصنيف
         last_image_index = None
         for idx, row in matches.iterrows():
             if pd.notna(row.get("Image")):
@@ -6010,7 +5279,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         context.user_data.setdefault(user_id, {})
         context.user_data[user_id]["last_image_index_for_cat"] = last_image_index
-        # 📌 انتهى التعديل الوحيد هنا
+    # 📌 انتهى التعديل الوحيد هنا
 
         now_saudi = datetime.now(timezone.utc) + timedelta(hours=3)
         delete_time = (now_saudi + timedelta(minutes=15)).strftime("%I:%M %p")
@@ -6018,7 +5287,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user_name = query.from_user.full_name
 
-        # 🔹 رسائل القطع داخل التصنيف
+    # 🔹 رسائل القطع داخل التصنيف
         for i, row in matches.iterrows():
             part_name_value = row.get("Station Name", "غير معروف")
             part_number_value = row.get("Part No", "غير معروف")
@@ -6042,17 +5311,13 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = []
             if pd.notna(row.get("Image")):
                 keyboard.append(
-                    [
-                        InlineKeyboardButton(
-                            "عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}"
-                        )
-                    ]
+                    [InlineKeyboardButton("عرض الصورة 📸", callback_data=f"part_image_{i}_{user_id}")]
                 )
 
             msg = await query.message.reply_text(
                 text,
                 reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
-                parse_mode=ParseMode.HTML,
+                parse_mode=ParseMode.HTML
             )
             register_message(user_id, msg.message_id, query.message.chat_id, context)
 
@@ -6062,41 +5327,23 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # نحاول نجيب البراند من user_data لو محفوظ
         parts_brand = context.user_data.get(user_id, {}).get("parts_brand")
         back_buttons = [
-            [
-                InlineKeyboardButton(
-                    "🗂 رجوع لقائمة تصنيفات القطع",
-                    callback_data=f"showparts_{safe_car}_{user_id}",
-                )
-            ],
+            [InlineKeyboardButton("🗂 رجوع لقائمة تصنيفات القطع", callback_data=f"showparts_{safe_car}_{user_id}")],
         ]
 
         if parts_brand:
             # يرجع لقائمة سيارات نفس البراند
             safe_brand = str(parts_brand).replace(" ", "_")
             back_buttons.append(
-                [
-                    InlineKeyboardButton(
-                        "🚘 اختيار سيارة أخرى",
-                        callback_data=f"pbrand_{safe_brand}_{user_id}",
-                    )
-                ]
+                [InlineKeyboardButton("🚘 اختيار سيارة أخرى", callback_data=f"pbrand_{safe_brand}_{user_id}")]
             )
         else:
             # احتياط: يرجعه لقائمة خدمة قطع الغيار العامة
             back_buttons.append(
-                [
-                    InlineKeyboardButton(
-                        "🚘 اختيار سيارة أخرى", callback_data=f"parts_{user_id}"
-                    )
-                ]
+                [InlineKeyboardButton("🚘 اختيار سيارة أخرى", callback_data=f"parts_{user_id}")]
             )
 
         back_buttons.append(
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                )
-            ]
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
         )
 
         back_keyboard = InlineKeyboardMarkup(back_buttons)
@@ -6110,7 +5357,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await log_event(update, f"✅ استعلام تصنيفي: {keyword} ضمن {selected_car}")
         return
-
+    
     elif action == "coming":
         teaser = (
             f"<b>🚀 اهلا {name}</b>\n\n"
@@ -6126,41 +5373,38 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # ✅ زر ديناميكي: رابط عند التفعيل / تنبيه عند عدم التفعيل
         if PP_DIRECT_ENABLED and PP_BOT_USERNAME:
             start_btn = InlineKeyboardButton(
-                "↗️ ابدأ بطلب القطع الآن", url=f"https://t.me/{PP_BOT_USERNAME}?start=pp"
+                "↗️ ابدأ بطلب القطع الآن",
+                url=f"https://t.me/{PP_BOT_USERNAME}?start=pp"
             )
         else:
             start_btn = InlineKeyboardButton(
-                "↗️ ابدأ بطلب القطع الآن", callback_data=f"coming_soon_{user_id}"
+                "↗️ ابدأ بطلب القطع الآن",
+                callback_data=f"coming_soon_{user_id}"
             )
 
-        kb = InlineKeyboardMarkup(
-            [
-                [start_btn],
-                [
-                    InlineKeyboardButton(
-                        "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                    )
-                ],
-            ]
-        )
+        kb = InlineKeyboardMarkup([
+            [start_btn],
+            [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
+                    ])
 
         try:
             await query.edit_message_text(
                 teaser,
                 reply_markup=kb,
                 parse_mode=constants.ParseMode.HTML,
-                disable_web_page_preview=True,
-            )
+                disable_web_page_preview=True
+        )
         except Exception:
             await query.message.reply_text(
                 teaser,
                 reply_markup=kb,
                 parse_mode=constants.ParseMode.HTML,
-                disable_web_page_preview=True,
+                disable_web_page_preview=True
             )
 
         await log_event(update, "فتح زر (قريبا شراء قطع غيار مباشر)")
         return
+
 
     elif action == "coming_soon":
         await query.answer("⏳ الخدمة قيد التجهيز وسيتم تفعيلها قريبا", show_alert=True)
@@ -6193,41 +5437,38 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         text = f"{user_block}\n\n{prompt_block}"
 
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "📤 يمكنك اضافة وسائط مع الاستفسار ",
-                        callback_data="send_suggestion",
-                    )
-                ],
-                # [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
-            ]
-        )
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📤 يمكنك اضافة وسائط مع الاستفسار ", callback_data="send_suggestion")],
+          # [InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]
+        ])
 
         # 👇 هنا الذكاء: لو الرسالة الحالية هي رسالة الشكر (فيها رقم تذكرة) نخليها كما هي ونرسل رسالة جديدة تحتها
         current_text = (query.message.text or "") if query.message else ""
 
         if "🎫 رقم تذكرتك" in current_text:
             msg = await query.message.reply_text(
-                text, reply_markup=keyboard, parse_mode=constants.ParseMode.MARKDOWN
+                text,
+                reply_markup=keyboard,
+                parse_mode=constants.ParseMode.MARKDOWN
             )
         else:
             # السلوك القديم للقائمة الرئيسية أو أماكن أخرى
             try:
                 msg = await query.edit_message_text(
-                    text, reply_markup=keyboard, parse_mode=constants.ParseMode.MARKDOWN
+                    text,
+                    reply_markup=keyboard,
+                    parse_mode=constants.ParseMode.MARKDOWN
                 )
             except Exception:
                 # لو فشل التعديل لأي سبب، نرجع نرسلها كرسالة جديدة
                 msg = await query.message.reply_text(
-                    text, reply_markup=keyboard, parse_mode=constants.ParseMode.MARKDOWN
+                    text,
+                    reply_markup=keyboard,
+                    parse_mode=constants.ParseMode.MARKDOWN
                 )
 
         register_message(user_id, msg.message_id, query.message.chat_id, context)
-        await log_event(
-            update, "بدأ المستخدم إرسال استفسار أو ملاحظة عبر مركز الدعم الفني"
-        )
+        await log_event(update, "بدأ المستخدم إرسال استفسار أو ملاحظة عبر مركز الدعم الفني")
 
         if "active_suggestion_id" not in context.user_data[user_id]:
             suggestion_id = await start_suggestion_session(user_id, context)
@@ -6241,8 +5482,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             record["user_name"] = user_name
 
         return
-
-
+        
 async def start_team_general_thread(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """زر: team_main_USERID من القائمة الرئيسية"""
     query = update.callback_query
@@ -6295,16 +5535,9 @@ async def start_team_general_thread(update: Update, context: ContextTypes.DEFAUL
         "`✍️ اكتب رسالتك الأولى الآن، وسيتم إرسالها لبقية المشرفين في قنواتهم الخاصة.`"
     )
 
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "❌ إلغاء النقاش والعودة للقائمة الرئيسية",
-                    callback_data="cancelteam",
-                )
-            ]
-        ]
-    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("❌ إلغاء النقاش والعودة للقائمة الرئيسية", callback_data="cancelteam")]
+    ])
 
     msg = await context.bot.send_message(
         chat_id=admin_id,
@@ -6316,7 +5549,6 @@ async def start_team_general_thread(update: Update, context: ContextTypes.DEFAUL
     # حفظ رسالة النقاش لحذفها عند الإلغاء
     state["team_msg_chat_id"] = msg.chat_id
     state["team_msg_id"] = msg.message_id
-
 
 async def start_team_opinion_thread(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """زر: team_opinion_userId_suggestionId من إشعارات الرد"""
@@ -6350,19 +5582,13 @@ async def start_team_opinion_thread(update: Update, context: ContextTypes.DEFAUL
     def _bad(v):
         return v in (None, "", "خاص", "غير معروف")
 
-    if (
-        _bad(record.get("group_name"))
-        or _bad(record.get("group_id"))
-        or record.get("group_id") in (None, user_id, "غير معروف")
-    ):
+    if _bad(record.get("group_name")) or _bad(record.get("group_id")) or record.get("group_id") in (None, user_id, "غير معروف"):
         uctx = context.user_data.get(user_id, {}) or {}
 
         fixed_name = uctx.get("final_group_name") or uctx.get("group_title")
         fixed_id = uctx.get("final_group_id") or uctx.get("group_id")
 
-        if (
-            _bad(fixed_name) or _bad(fixed_id) or fixed_id == user_id
-        ) and user_id in context.bot_data:
+        if (_bad(fixed_name) or _bad(fixed_id) or fixed_id == user_id) and user_id in context.bot_data:
             bctx = context.bot_data.get(user_id, {}) or {}
             fixed_name = bctx.get("group_title") or fixed_name
             fixed_id = bctx.get("group_id") or fixed_id
@@ -6397,16 +5623,13 @@ async def start_team_opinion_thread(update: Update, context: ContextTypes.DEFAUL
     await context.bot.send_message(
         chat_id=admin_id,
         text=(
-            f"🧵 تم فتح نقاش داخلي حول استفسار العضو {record.get('user_name', '')} "
+            f"🧵 تم فتح نقاش داخلي حول استفسار العضو {record.get('user_name','')} "
             f"(نقاش #{thread_id}).\n\n"
             "✍️ اكتب رأيك أو ملاحظتك الآن، وسيتم إرسالها لبقية المشرفين."
         ),
     )
 
-
-async def team_reply_existing_thread(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-):
+async def team_reply_existing_thread(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """زر: team_reply_threadId من رسالة نقاش سابقة"""
     query = update.callback_query
     data = (query.data or "").split("_")
@@ -6445,8 +5668,6 @@ async def team_reply_existing_thread(
     )
 
     ### ✅ الدالة المعدلة: handle_suggestion
-
-
 async def handle_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
@@ -6472,7 +5693,10 @@ async def handle_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = f"{user_block}\n\n{prompt_block}"
 
-    msg = await update.message.reply_text(text, parse_mode=constants.ParseMode.MARKDOWN)
+    msg = await update.message.reply_text(
+        text,
+        parse_mode=constants.ParseMode.MARKDOWN
+    )
     register_message(user_id, msg.message_id, chat.id, context)
     await log_event(update, "بدأ المستخدم إرسال استفسار أو ملاحظة عبر مركز الدعم الفني")
 
@@ -6484,7 +5708,6 @@ async def handle_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         record["group_id"] = chat.id if chat.type != "private" else "غير معروف"
         record["user_name"] = user.full_name
 
-
 async def handle_suggestion_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data_parts = query.data.split("_")
@@ -6493,9 +5716,7 @@ async def handle_suggestion_reply(update: Update, context: ContextTypes.DEFAULT_
     prefix = data_parts[0] if data_parts else ""
 
     if len(data_parts) < 3 or not data_parts[1].isdigit():
-        await query.answer(
-            "❌ لا يمكن معالجة الطلب، البيانات غير مكتملة.", show_alert=True
-        )
+        await query.answer("❌ لا يمكن معالجة الطلب، البيانات غير مكتملة.", show_alert=True)
         return
 
     user_id = int(data_parts[1])
@@ -6519,22 +5740,16 @@ async def handle_suggestion_reply(update: Update, context: ContextTypes.DEFAULT_
         ticket_part = f" 🎫 #{ticket_no}" if ticket_no else ""
         await query.answer(
             f"🟥 تم الرد على التذكرة{ticket_part} مسبقًا من قبل: {record['replied_by']}",
-            show_alert=True,
+            show_alert=True
         )
         return
 
     # ✅ قفل مؤقت فقط قبل أول رد (منع مشرفين يفتحون التذكرة بنفس الوقت)
     if not record.get("replied_by"):
         locked_by_id = record.get("locked_by_id")
-        if (
-            locked_by_id
-            and not _lock_expired(record)
-            and int(locked_by_id) != int(admin_id)
-        ):
+        if locked_by_id and not _lock_expired(record) and int(locked_by_id) != int(admin_id):
             locker = record.get("locked_by_name") or "مشرف آخر"
-            await query.answer(
-                f"🔒 التذكرة قيد المعالجة بواسطة: {locker}", show_alert=True
-            )
+            await query.answer(f"🔒 التذكرة قيد المعالجة بواسطة: {locker}", show_alert=True)
             return
 
         ok, reason = lock_ticket(record, admin_id, admin_name)
@@ -6548,27 +5763,15 @@ async def handle_suggestion_reply(update: Update, context: ContextTypes.DEFAULT_
     # ✅ تصحيح بيانات المجموعة إذا كانت ناقصة أو غير صحيحة
     if record.get("group_name") in ["خاص", None] or record.get("group_id") == user_id:
         user_ctx = context.user_data.get(user_id, {})
-        record["group_name"] = user_ctx.get("group_title") or user_ctx.get(
-            "final_group_name", "غير معروف"
-        )
-        record["group_id"] = user_ctx.get("group_id") or user_ctx.get(
-            "final_group_id", "غير معروف"
-        )
+        record["group_name"] = user_ctx.get("group_title") or user_ctx.get("final_group_name", "غير معروف")
+        record["group_id"] = user_ctx.get("group_id") or user_ctx.get("final_group_id", "غير معروف")
 
     # 👇 هنا التفريع على مرحلتين حسب البادئة
     if prefix == "reply":
         # المرحلة الأولى: اختيار نوع الرد
         keyboard = [
-            [
-                InlineKeyboardButton(
-                    "📋 رد جاهز", callback_data=f"replyready_{user_id}_{suggestion_id}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "✍️ رد مخصص", callback_data=f"customreply_{user_id}_{suggestion_id}"
-                )
-            ],
+            [InlineKeyboardButton("📋 رد جاهز", callback_data=f"replyready_{user_id}_{suggestion_id}")],
+            [InlineKeyboardButton("✍️ رد مخصص", callback_data=f"customreply_{user_id}_{suggestion_id}")],
         ]
 
         text = (
@@ -6581,21 +5784,12 @@ async def handle_suggestion_reply(update: Update, context: ContextTypes.DEFAULT_
     else:
         # المرحلة الثانية: قائمة الردود الجاهزة
         keyboard = [
-            [
-                InlineKeyboardButton(
-                    text, callback_data=f"sendreply_{key}_{user_id}_{suggestion_id}"
-                )
-            ]
+            [InlineKeyboardButton(text, callback_data=f"sendreply_{key}_{user_id}_{suggestion_id}")]
             for key, text in SUGGESTION_REPLIES.items()
         ]
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    "⬅️ رجوع لاختيار نوع الرد",
-                    callback_data=f"reply_{user_id}_{suggestion_id}",
-                )
-            ]
-        )
+        keyboard.append([
+            InlineKeyboardButton("⬅️ رجوع لاختيار نوع الرد", callback_data=f"reply_{user_id}_{suggestion_id}")
+        ])
 
         text = (
             "✉️ اختر الرد الجاهز الذي تريد إرساله للمستخدم:\n\n"
@@ -6609,21 +5803,18 @@ async def handle_suggestion_reply(update: Update, context: ContextTypes.DEFAULT_
         chat_id=admin_id,
         text=text,
         reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode=ParseMode.HTML,
+        parse_mode=ParseMode.HTML
     )
 
     # حذف القائمة القديمة إن وجدت
     if "reply_menu_chat" in record and "reply_menu_id" in record:
         try:
-            await context.bot.delete_message(
-                record["reply_menu_chat"], record["reply_menu_id"]
-            )
+            await context.bot.delete_message(record["reply_menu_chat"], record["reply_menu_id"])
         except Exception:
             pass
 
     record["reply_menu_id"] = msg.message_id
     record["reply_menu_chat"] = msg.chat_id
-
 
 async def send_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -6635,7 +5826,7 @@ async def send_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if attempts >= 3:
         await query.answer(
             "انتهت الاستفسارات في هذه الجلسة. أغلق الاتصال من زر الالغاء واستخدم GO بالمجموعة للعودة لمركز الدعم مره اخرى .",
-            show_alert=True,
+            show_alert=True
         )
         return
 
@@ -6669,17 +5860,11 @@ async def send_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     group_name = record.get("group_name")
     group_id = record.get("group_id")
 
-    if group_name in [None, "غير معروف", "خاص"] or group_id in [
-        None,
-        "غير معروف",
-        user_id,
-    ]:
+    if group_name in [None, "غير معروف", "خاص"] or group_id in [None, "غير معروف", user_id]:
         group_name = user_data.get("final_group_name")
         group_id = user_data.get("final_group_id")
 
-    if (
-        not group_name or group_name in ["غير معروف", "خاص"]
-    ) and user_id in context.bot_data:
+    if (not group_name or group_name in ["غير معروف", "خاص"]) and user_id in context.bot_data:
         fallback = context.bot_data[user_id]
         group_name = fallback.get("group_title", group_name)
         group_id = fallback.get("group_id", group_id)
@@ -6687,9 +5872,7 @@ async def send_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     record["group_name"] = group_name or "غير معروف"
     record["group_id"] = group_id or "غير معروف"
 
-    logging.info(
-        f"[تأكيد المجموعة] المستخدم: {user_id} | المجموعة: {group_name} | ID: {group_id}"
-    )
+    logging.info(f"[تأكيد المجموعة] المستخدم: {user_id} | المجموعة: {group_name} | ID: {group_id}")
 
     # 👉 استخراج رقم التذكرة
     ticket_no = record.get("ticket_no", "—")
@@ -6704,16 +5887,9 @@ async def send_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "╰─────────╯"
     )
 
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "📝 الرد على الاستفسار الوارد",
-                    callback_data=f"reply_{user_id}_{suggestion_id}",
-                )
-            ]
-        ]
-    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📝 الرد على الاستفسار الوارد", callback_data=f"reply_{user_id}_{suggestion_id}")]
+    ])
 
     record["admin_messages"] = {}
 
@@ -6727,54 +5903,44 @@ async def send_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 mtype = media["type"]
                 fid = media["file_id"]
                 if text:
-                    full_caption += (
-                        f"\n\n📝 <b>الاستفسار الوارد :</b>\n<code>{text}</code>"
-                    )
+                    full_caption += f"\n\n📝 <b>الاستفسار الوارد :</b>\n<code>{text}</code>"
 
                 if mtype == "photo":
                     sent = await context.bot.send_photo(
-                        admin_id,
-                        fid,
+                        admin_id, fid,
                         caption=full_caption,
                         parse_mode=ParseMode.HTML,
-                        reply_markup=keyboard,
+                        reply_markup=keyboard
                     )
                 elif mtype == "video":
                     sent = await context.bot.send_video(
-                        admin_id,
-                        fid,
+                        admin_id, fid,
                         caption=full_caption,
                         parse_mode=ParseMode.HTML,
-                        reply_markup=keyboard,
+                        reply_markup=keyboard
                     )
                 elif mtype == "document":
                     sent = await context.bot.send_document(
-                        admin_id,
-                        fid,
+                        admin_id, fid,
                         caption=full_caption,
                         parse_mode=ParseMode.HTML,
-                        reply_markup=keyboard,
+                        reply_markup=keyboard
                     )
                 elif mtype == "voice":
                     sent = await context.bot.send_voice(
-                        admin_id,
-                        fid,
+                        admin_id, fid,
                         caption=full_caption,
                         parse_mode=ParseMode.HTML,
-                        reply_markup=keyboard,
+                        reply_markup=keyboard
                     )
             else:
-                suggestion_block = (
-                    f"\n\n📝 <b>الاستفسار الوارد:</b>\n<code>{text}</code>"
-                    if text
-                    else ""
-                )
+                suggestion_block = f"\n\n📝 <b>الاستفسار الوارد:</b>\n<code>{text}</code>" if text else ""
                 full_caption += suggestion_block
                 sent = await context.bot.send_message(
                     admin_id,
                     text=full_caption,
                     parse_mode=ParseMode.HTML,
-                    reply_markup=keyboard,
+                    reply_markup=keyboard
                 )
 
             if sent:
@@ -6800,7 +5966,10 @@ async def send_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if text:
-        thank_you_message += f"ملخص استفسارك:\n{text}\n\n"
+        thank_you_message += (
+            "ملخص استفسارك:\n"
+            f"{text}\n\n"
+        )
 
     thank_you_message += (
         "✅ تم إرسال الاستفسار بنجاح إلى فريق الدعم الفني .\n"
@@ -6809,11 +5978,7 @@ async def send_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     back_keyboard = InlineKeyboardMarkup(
         [
-            [
-                InlineKeyboardButton(
-                    "✉️ إرسال استفسار آخر", callback_data=f"suggestion_{user_id}"
-                )
-            ],
+            [InlineKeyboardButton("✉️ إرسال استفسار آخر", callback_data=f"suggestion_{user_id}")],
         ]
     )
 
@@ -6821,7 +5986,7 @@ async def send_suggestion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=user_id,
         text=thank_you_message,
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=back_keyboard,
+        reply_markup=back_keyboard
     )
 
     # ✅ مهم: فصل التذكرة بعد الإرسال حتى ينشئ تذكرة جديدة لاحقًا
@@ -6856,15 +6021,9 @@ async def handle_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     locked_now = False
     if not record.get("replied_by"):
         locked_by_id = record.get("locked_by_id")
-        if (
-            locked_by_id
-            and not _lock_expired(record)
-            and int(locked_by_id) != int(admin_id)
-        ):
+        if locked_by_id and not _lock_expired(record) and int(locked_by_id) != int(admin_id):
             locker = record.get("locked_by_name") or "مشرف آخر"
-            await query.answer(
-                f"🔒 التذكرة قيد المعالجة بواسطة: {locker}", show_alert=True
-            )
+            await query.answer(f"🔒 التذكرة قيد المعالجة بواسطة: {locker}", show_alert=True)
             return
 
         ok, reason = lock_ticket(record, admin_id, admin_name)
@@ -6877,17 +6036,13 @@ async def handle_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if existing_admin and existing_admin != admin_name:
         await query.answer(
             f"🟥 تم الرد مسبقًا على هذا الاستفسار من قبل: {existing_admin}",
-            show_alert=True,
+            show_alert=True
         )
         return
 
     # ✅ حماية: لو ما فيه replied_by (تذكرة جديدة) نضمن أن العداد صفر
     if not record.get("replied_by"):
-        record["reply_count"] = (
-            int(record.get("reply_count", 0) or 0)
-            if str(record.get("reply_count", "0")).isdigit()
-            else 0
-        )
+        record["reply_count"] = int(record.get("reply_count", 0) or 0) if str(record.get("reply_count", "0")).isdigit() else 0
         if record["reply_count"] != 0:
             record["reply_count"] = 0
 
@@ -6902,20 +6057,14 @@ async def handle_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     def _bad(v):
         return v in (None, "", "خاص", "غير معروف")
 
-    if (
-        _bad(record.get("group_name"))
-        or _bad(record.get("group_id"))
-        or record.get("group_id") in (None, user_id, "غير معروف")
-    ):
+    if _bad(record.get("group_name")) or _bad(record.get("group_id")) or record.get("group_id") in (None, user_id, "غير معروف"):
         uctx = context.user_data.get(user_id, {}) or {}
 
         fixed_name = uctx.get("final_group_name") or uctx.get("group_title")
         fixed_id = uctx.get("final_group_id") or uctx.get("group_id")
 
         # احتياط: bot_data (خصوصًا إذا التذكرة بدأت من مجموعة ثم انتقل للخاص)
-        if (
-            _bad(fixed_name) or _bad(fixed_id) or fixed_id == user_id
-        ) and user_id in context.bot_data:
+        if (_bad(fixed_name) or _bad(fixed_id) or fixed_id == user_id) and user_id in context.bot_data:
             bctx = context.bot_data.get(user_id, {}) or {}
             fixed_name = bctx.get("group_title") or fixed_name
             fixed_id = bctx.get("group_id") or fixed_id
@@ -6944,8 +6093,8 @@ async def handle_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ticket_no = record.get("ticket_no")
     if ticket_no:
         ticket_info_user = (
-            f"\u200f🎫 *رقم التذكرة:* `#{ticket_no}`\n"
-            f"\u200f🔁 *رقم الرد داخل التذكرة:* `{new_count}`\n\n"
+            f"\u200F🎫 *رقم التذكرة:* `#{ticket_no}`\n"
+            f"\u200F🔁 *رقم الرد داخل التذكرة:* `{new_count}`\n\n"
         )
         ticket_info_admin = ticket_info_user
     else:
@@ -6954,52 +6103,50 @@ async def handle_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if is_additional:
         user_caption = (
-            f"\u200f🔁 *رد إضافي رقم {new_count} من فريق الدعم الفني GO:*\n\n"
+            f"\u200F🔁 *رد إضافي رقم {new_count} من فريق الدعم الفني GO:*\n\n"
             f"{ticket_info_user}"
-            f"\u200f📝 *استفسارك أو ملاحظتك:*\n"
+            f"\u200F📝 *استفسارك أو ملاحظتك:*\n"
             f"```{original_text.strip()}```\n\n"
-            f"\u200f💬 *رد المشرف:*\n"
+            f"\u200F💬 *رد المشرف:*\n"
             f"```{reply_text.strip()}```{hidden_link}\n\n"
-            f"\u200f🤖 *شكرًا لمتابعتك معنا.*"
+            f"\u200F🤖 *شكرًا لمتابعتك معنا.*"
         )
     else:
         user_caption = (
-            f"\u200f📣 *رد من قبل فريق الدعم الفني GO:*\n\n"
+            f"\u200F📣 *رد من قبل فريق الدعم الفني GO:*\n\n"
             f"{ticket_info_user}"
-            f"\u200f📝 *استفسارك أو ملاحظتك:*\n"
+            f"\u200F📝 *استفسارك أو ملاحظتك:*\n"
             f"```{original_text.strip()}```\n\n"
-            f"\u200f💬 *رد المشرف:*\n"
+            f"\u200F💬 *رد المشرف:*\n"
             f"```{reply_text.strip()}```{hidden_link}\n\n"
-            f"\u200f🤖 *شكرًا لثقتك بفريق الصيانة والدعم الفني GO.*"
+            f"\u200F🤖 *شكرًا لثقتك بفريق الصيانة والدعم الفني GO.*"
         )
 
     if is_additional:
         admin_caption = (
-            f"\u200f🔁 *رد إضافي رقم {new_count} من فريق الدعم الفني GO:*\n\n"
+            f"\u200F🔁 *رد إضافي رقم {new_count} من فريق الدعم الفني GO:*\n\n"
             f"{ticket_info_admin}"
-            f"\u200f👤 `{user_name}`\n"
-            f"\u200f🆔 {user_id}\n"
-            f"\u200f🏘️ \u202b{group_name}\u202c\n"
-            f"\u200f🔢 `{group_id}`\n"
-            + ("\u200f📎 يحتوي على وسائط\n" if has_media else "")
-            + "\n"
-            f"\u200f📝 *المداخلة:*\n```{original_text.strip()}```\n\n"
-            f"\u200f💬 *رد المشرف:*\n```{reply_text.strip()}```{hidden_link}\n\n"
-            f"\u200f✅ تم الرد من قبل: `{admin_name}`"
+            f"\u200F👤 `{user_name}`\n"
+            f"\u200F🆔 {user_id}\n"
+            f"\u200F🏘️ \u202B{group_name}\u202C\n"
+            f"\u200F🔢 `{group_id}`\n"
+            + ("\u200F📎 يحتوي على وسائط\n" if has_media else "") + "\n"
+            f"\u200F📝 *المداخلة:*\n```{original_text.strip()}```\n\n"
+            f"\u200F💬 *رد المشرف:*\n```{reply_text.strip()}```{hidden_link}\n\n"
+            f"\u200F✅ تم الرد من قبل: `{admin_name}`"
         )
     else:
         admin_caption = (
-            f"\u200f📣 *رد من قبل فريق الدعم الفني GO:*\n\n"
+            f"\u200F📣 *رد من قبل فريق الدعم الفني GO:*\n\n"
             f"{ticket_info_admin}"
-            f"\u200f👤 `{user_name}`\n"
-            f"\u200f🆔 {user_id}\n"
-            f"\u200f🏘️ \u202b{group_name}\u202c\n"
-            f"\u200f🔢 `{group_id}`\n"
-            + ("\u200f📎 يحتوي على وسائط\n" if has_media else "")
-            + "\n"
-            f"\u200f📝 *المداخلة:*\n```{original_text.strip()}```\n\n"
-            f"\u200f💬 *رد المشرف:*\n```{reply_text.strip()}```{hidden_link}\n\n"
-            f"\u200f✅ تم الرد من قبل: `{admin_name}`"
+            f"\u200F👤 `{user_name}`\n"
+            f"\u200F🆔 {user_id}\n"
+            f"\u200F🏘️ \u202B{group_name}\u202C\n"
+            f"\u200F🔢 `{group_id}`\n"
+            + ("\u200F📎 يحتوي على وسائط\n" if has_media else "") + "\n"
+            f"\u200F📝 *المداخلة:*\n```{original_text.strip()}```\n\n"
+            f"\u200F💬 *رد المشرف:*\n```{reply_text.strip()}```{hidden_link}\n\n"
+            f"\u200F✅ تم الرد من قبل: `{admin_name}`"
         )
 
     try:
@@ -7010,37 +6157,19 @@ async def handle_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             mtype = media["type"]
             fid = media["file_id"]
             if mtype == "photo":
-                await context.bot.send_photo(
-                    user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN
-                )
+                await context.bot.send_photo(user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN)
             elif mtype == "video":
-                await context.bot.send_video(
-                    user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN
-                )
+                await context.bot.send_video(user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN)
             elif mtype == "document":
-                await context.bot.send_document(
-                    user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN
-                )
+                await context.bot.send_document(user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN)
             elif mtype == "voice":
-                await context.bot.send_voice(
-                    user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN
-                )
+                await context.bot.send_voice(user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN)
         else:
             try:
                 with open("GO-NOW.PNG", "rb") as image:
-                    await context.bot.send_photo(
-                        user_id,
-                        image,
-                        caption=user_caption,
-                        parse_mode=ParseMode.MARKDOWN,
-                    )
+                    await context.bot.send_photo(user_id, image, caption=user_caption, parse_mode=ParseMode.MARKDOWN)
             except Exception:
-                await context.bot.send_message(
-                    user_id,
-                    text=user_caption,
-                    parse_mode=ParseMode.MARKDOWN,
-                    disable_web_page_preview=True,
-                )
+                await context.bot.send_message(user_id, text=user_caption, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
         # ✅ نجاح الإرسال: نثبت العداد واسم المشرف
         record["reply_count"] = new_count
@@ -7060,28 +6189,14 @@ async def handle_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for aid in AUTHORIZED_USERS:
             try:
                 buttons = [
-                    [
-                        InlineKeyboardButton(
-                            "🟦 دعوة فريق GO للنقاش", callback_data=f"team_main_{aid}"
-                        )
-                    ],
-                    [
-                        InlineKeyboardButton(
-                            "🗣️ دعوة إبداء رأي",
-                            callback_data=f"team_opinion_{user_id}_{suggestion_id}",
-                        )
-                    ],
+                    [InlineKeyboardButton("🟦 دعوة فريق GO للنقاش", callback_data=f"team_main_{aid}")],
+                    [InlineKeyboardButton("🗣️ دعوة إبداء رأي", callback_data=f"team_opinion_{user_id}_{suggestion_id}")],
                 ]
 
                 if aid == admin_id:
                     buttons.insert(
                         0,
-                        [
-                            InlineKeyboardButton(
-                                "✉️ إرسال رد آخر",
-                                callback_data=f"customreply_{user_id}_{suggestion_id}",
-                            )
-                        ],
+                        [InlineKeyboardButton("✉️ إرسال رد آخر", callback_data=f"customreply_{user_id}_{suggestion_id}")]
                     )
 
                 reply_markup = InlineKeyboardMarkup(buttons)
@@ -7090,60 +6205,22 @@ async def handle_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     mtype = media["type"]
                     fid = media["file_id"]
                     if mtype == "photo":
-                        await context.bot.send_photo(
-                            aid,
-                            fid,
-                            caption=admin_caption,
-                            parse_mode=ParseMode.MARKDOWN,
-                            reply_markup=reply_markup,
-                        )
+                        await context.bot.send_photo(aid, fid, caption=admin_caption, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                     elif mtype == "video":
-                        await context.bot.send_video(
-                            aid,
-                            fid,
-                            caption=admin_caption,
-                            parse_mode=ParseMode.MARKDOWN,
-                            reply_markup=reply_markup,
-                        )
+                        await context.bot.send_video(aid, fid, caption=admin_caption, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                     elif mtype == "document":
-                        await context.bot.send_document(
-                            aid,
-                            fid,
-                            caption=admin_caption,
-                            parse_mode=ParseMode.MARKDOWN,
-                            reply_markup=reply_markup,
-                        )
+                        await context.bot.send_document(aid, fid, caption=admin_caption, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                     elif mtype == "voice":
-                        await context.bot.send_voice(
-                            aid,
-                            fid,
-                            caption=admin_caption,
-                            parse_mode=ParseMode.MARKDOWN,
-                            reply_markup=reply_markup,
-                        )
+                        await context.bot.send_voice(aid, fid, caption=admin_caption, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                 else:
                     try:
                         with open("GO-NOW.PNG", "rb") as image:
-                            await context.bot.send_photo(
-                                aid,
-                                image,
-                                caption=admin_caption,
-                                parse_mode=ParseMode.MARKDOWN,
-                                reply_markup=reply_markup,
-                            )
+                            await context.bot.send_photo(aid, image, caption=admin_caption, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                     except Exception:
-                        await context.bot.send_message(
-                            aid,
-                            text=admin_caption,
-                            parse_mode=ParseMode.MARKDOWN,
-                            reply_markup=reply_markup,
-                            disable_web_page_preview=True,
-                        )
+                        await context.bot.send_message(aid, text=admin_caption, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup, disable_web_page_preview=True)
 
             except Exception as e:
-                logging.warning(
-                    f"[HANDLE_SEND_REPLY][admin_notify {aid}] فشل إرسال الإشعار: {e}"
-                )
+                logging.warning(f"[HANDLE_SEND_REPLY][admin_notify {aid}] فشل إرسال الإشعار: {e}")
 
     except Exception as e:
         # ✅ لو فشل الإرسال: نفك القفل لو كان هو اللي قفّل (حتى لا تعلق التذكرة)
@@ -7155,12 +6232,9 @@ async def handle_send_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         logging.error(f"[HANDLE_SEND_REPLY] فشل في إرسال الرد للمستخدم {user_id}: {e}")
         try:
-            await query.answer(
-                "❌ حصل خطأ أثناء إرسال الرد. جرّب مرة أخرى.", show_alert=True
-            )
+            await query.answer("❌ حصل خطأ أثناء إرسال الرد. جرّب مرة أخرى.", show_alert=True)
         except Exception:
             pass
-
 
 async def handle_custom_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -7192,28 +6266,21 @@ async def handle_custom_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
     if existing_admin_id and int(existing_admin_id) != int(admin_id):
         await query.answer(
             f"🟥 تم الرد مسبقًا على هذا الاستفسار من قبل: {existing_admin}",
-            show_alert=True,
+            show_alert=True
         )
         return
 
     if existing_admin and existing_admin != admin_name and not existing_admin_id:
         await query.answer(
             f"🟥 تم الرد مسبقًا على هذا الاستفسار من قبل: {existing_admin}",
-            show_alert=True,
+            show_alert=True
         )
         return
 
     # ✅ تصحيح معلومات المجموعة إن كانت ناقصة
-    if record.get("group_name") in ["خاص", None] or record.get("group_id") in [
-        None,
-        user_id,
-    ]:
-        record["group_name"] = context.user_data.get(user_id, {}).get(
-            "group_title", "غير معروف"
-        )
-        record["group_id"] = context.user_data.get(user_id, {}).get(
-            "group_id", "غير معروف"
-        )
+    if record.get("group_name") in ["خاص", None] or record.get("group_id") in [None, user_id]:
+        record["group_name"] = context.user_data.get(user_id, {}).get("group_title", "غير معروف")
+        record["group_id"] = context.user_data.get(user_id, {}).get("group_id", "غير معروف")
 
     # 📌 تفعيل وضع الإدخال اليدوي
     context.user_data.setdefault(admin_id, {})
@@ -7223,12 +6290,11 @@ async def handle_custom_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     msg = await query.message.reply_text(
         f"✍️ أرسل الآن الرد المخصص ليتم إرساله للمستخدم `{user_id}`:",
-        parse_mode=ParseMode.MARKDOWN,
+        parse_mode=ParseMode.MARKDOWN
     )
 
     # ✅ تسجيل الرسالة للحذف التلقائي إن أردت
     register_message(admin_id, msg.message_id, query.message.chat_id, context)
-
 
 ### ✅ الدالة المعدلة: submit_admin_reply
 async def submit_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -7252,15 +6318,9 @@ async def submit_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
     locked_now = False
     if not record.get("replied_by"):
         locked_by_id = record.get("locked_by_id")
-        if (
-            locked_by_id
-            and not _lock_expired(record)
-            and int(locked_by_id) != int(admin_id)
-        ):
+        if locked_by_id and not _lock_expired(record) and int(locked_by_id) != int(admin_id):
             locker = record.get("locked_by_name") or "مشرف آخر"
-            await query.answer(
-                f"🔒 التذكرة قيد المعالجة بواسطة: {locker}", show_alert=True
-            )
+            await query.answer(f"🔒 التذكرة قيد المعالجة بواسطة: {locker}", show_alert=True)
             return
 
         ok, reason = lock_ticket(record, admin_id, admin_name)
@@ -7273,17 +6333,13 @@ async def submit_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if existing_admin and existing_admin != admin_name:
         await query.answer(
             f"🟥 تم الرد مسبقًا على هذا الاستفسار من قبل: {existing_admin}",
-            show_alert=True,
+            show_alert=True
         )
         return
 
     # ✅ حماية: لو ما فيه replied_by (تذكرة جديدة) نضمن أن العداد صفر
     if not record.get("replied_by"):
-        record["reply_count"] = (
-            int(record.get("reply_count", 0) or 0)
-            if str(record.get("reply_count", "0")).isdigit()
-            else 0
-        )
+        record["reply_count"] = int(record.get("reply_count", 0) or 0) if str(record.get("reply_count", "0")).isdigit() else 0
         if record["reply_count"] != 0:
             record["reply_count"] = 0
 
@@ -7330,19 +6386,13 @@ async def submit_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
     def _bad(v):
         return v in (None, "", "خاص", "غير معروف")
 
-    if (
-        _bad(record.get("group_name"))
-        or _bad(record.get("group_id"))
-        or record.get("group_id") in (None, user_id, "غير معروف")
-    ):
+    if _bad(record.get("group_name")) or _bad(record.get("group_id")) or record.get("group_id") in (None, user_id, "غير معروف"):
         uctx = context.user_data.get(user_id, {}) or {}
 
         fixed_name = uctx.get("final_group_name") or uctx.get("group_title")
         fixed_id = uctx.get("final_group_id") or uctx.get("group_id")
 
-        if (
-            _bad(fixed_name) or _bad(fixed_id) or fixed_id == user_id
-        ) and user_id in context.bot_data:
+        if (_bad(fixed_name) or _bad(fixed_id) or fixed_id == user_id) and user_id in context.bot_data:
             bctx = context.bot_data.get(user_id, {}) or {}
             fixed_name = bctx.get("group_title") or fixed_name
             fixed_id = bctx.get("group_id") or fixed_id
@@ -7359,8 +6409,8 @@ async def submit_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
     ticket_no = record.get("ticket_no")
     if ticket_no:
         ticket_info_user = (
-            f"\u200f🎫 *رقم التذكرة:* `#{ticket_no}`\n"
-            f"\u200f🔁 *رقم الرد داخل التذكرة:* `{new_count}`\n\n"
+            f"\u200F🎫 *رقم التذكرة:* `#{ticket_no}`\n"
+            f"\u200F🔁 *رقم الرد داخل التذكرة:* `{new_count}`\n\n"
         )
         ticket_info_admin = ticket_info_user
     else:
@@ -7370,52 +6420,50 @@ async def submit_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # ===================== رسالة المستخدم =====================
     if is_additional:
         user_caption = (
-            f"\u200f🔁 *رد إضافي رقم {new_count} من فريق الدعم الفني GO:*\n\n"
+            f"\u200F🔁 *رد إضافي رقم {new_count} من فريق الدعم الفني GO:*\n\n"
             f"{ticket_info_user}"
-            f"\u200f📝 *استفسارك أو ملاحظتك:*\n```{original_text}```\n\n"
+            f"\u200F📝 *استفسارك أو ملاحظتك:*\n```{original_text}```\n\n"
         )
     else:
         user_caption = (
-            f"\u200f📣 *رد من قبل فريق الدعم الفني GO:*\n\n"
+            f"\u200F📣 *رد من قبل فريق الدعم الفني GO:*\n\n"
             f"{ticket_info_user}"
-            f"\u200f📝 *استفسارك أو ملاحظتك:*\n```{original_text}```\n\n"
+            f"\u200F📝 *استفسارك أو ملاحظتك:*\n```{original_text}```\n\n"
         )
 
     if reply_text:
-        user_caption += f"\u200f💬 *رد المشرف:*\n```{reply_text}```{hidden_link}\n\n"
+        user_caption += f"\u200F💬 *رد المشرف:*\n```{reply_text}```{hidden_link}\n\n"
 
-    user_caption += "\u200f🤖 *شكرًا لثقتك بفريق الصيانة والدعم الفني GO.*"
+    user_caption += "\u200F🤖 *شكرًا لثقتك بفريق الصيانة والدعم الفني GO.*"
 
     # ===================== رسالة المشرفين =====================
     if is_additional:
         admin_caption = (
-            f"\u200f🔁 *رد إضافي رقم {new_count} من فريق الدعم الفني GO:*\n\n"
+            f"\u200F🔁 *رد إضافي رقم {new_count} من فريق الدعم الفني GO:*\n\n"
             f"{ticket_info_admin}"
-            f"\u200f👤 `{user_name}`\n"
-            f"\u200f🆔 {user_id}\n"
-            f"\u200f🏘️ \u202b{group_name}\u202c\n"
-            f"\u200f🔢 `{group_id}`\n"
-            + ("\u200f📎 يحتوي على وسائط\n" if has_media else "")
-            + "\n"
-            f"\u200f📝 *الاستفسار:*\n```{original_text}```\n\n"
+            f"\u200F👤 `{user_name}`\n"
+            f"\u200F🆔 {user_id}\n"
+            f"\u200F🏘️ \u202B{group_name}\u202C\n"
+            f"\u200F🔢 `{group_id}`\n"
+            + ("\u200F📎 يحتوي على وسائط\n" if has_media else "") + "\n"
+            f"\u200F📝 *الاستفسار:*\n```{original_text}```\n\n"
         )
     else:
         admin_caption = (
-            f"\u200f📣 *رد من قبل فريق الدعم الفني GO:*\n\n"
+            f"\u200F📣 *رد من قبل فريق الدعم الفني GO:*\n\n"
             f"{ticket_info_admin}"
-            f"\u200f👤 `{user_name}`\n"
-            f"\u200f🆔 {user_id}\n"
-            f"\u200f🏘️ \u202b{group_name}\u202c\n"
-            f"\u200f🔢 `{group_id}`\n"
-            + ("\u200f📎 يحتوي على وسائط\n" if has_media else "")
-            + "\n"
-            f"\u200f📝 *الاستفسار:*\n```{original_text}```\n\n"
+            f"\u200F👤 `{user_name}`\n"
+            f"\u200F🆔 {user_id}\n"
+            f"\u200F🏘️ \u202B{group_name}\u202C\n"
+            f"\u200F🔢 `{group_id}`\n"
+            + ("\u200F📎 يحتوي على وسائط\n" if has_media else "") + "\n"
+            f"\u200F📝 *الاستفسار:*\n```{original_text}```\n\n"
         )
 
     if reply_text:
-        admin_caption += f"\u200f💬 *رد المشرف:*\n```{reply_text}```{hidden_link}\n\n"
+        admin_caption += f"\u200F💬 *رد المشرف:*\n```{reply_text}```{hidden_link}\n\n"
 
-    admin_caption += f"\u200f✅ تم الرد من قبل: `{admin_name}`"
+    admin_caption += f"\u200F✅ تم الرد من قبل: `{admin_name}`"
 
     try:
         # ✅ إرسال الرد للمستخدم
@@ -7423,36 +6471,23 @@ async def submit_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
             mtype = media["type"]
             fid = media["file_id"]
             if mtype == "photo":
-                await context.bot.send_photo(
-                    user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN
-                )
+                await context.bot.send_photo(user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN)
             elif mtype == "video":
-                await context.bot.send_video(
-                    user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN
-                )
+                await context.bot.send_video(user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN)
             elif mtype == "document":
-                await context.bot.send_document(
-                    user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN
-                )
+                await context.bot.send_document(user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN)
             elif mtype == "voice":
-                await context.bot.send_voice(
-                    user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN
-                )
+                await context.bot.send_voice(user_id, fid, caption=user_caption, parse_mode=ParseMode.MARKDOWN)
         else:
             try:
                 with open("GO-NOW.PNG", "rb") as image:
-                    await context.bot.send_photo(
-                        user_id,
-                        image,
-                        caption=user_caption,
-                        parse_mode=ParseMode.MARKDOWN,
-                    )
+                    await context.bot.send_photo(user_id, image, caption=user_caption, parse_mode=ParseMode.MARKDOWN)
             except Exception:
                 await context.bot.send_message(
                     user_id,
                     text=user_caption,
                     parse_mode=ParseMode.MARKDOWN,
-                    disable_web_page_preview=True,
+                    disable_web_page_preview=True
                 )
 
         # ✅ نجاح الإرسال: نثبت العداد واسم المشرف
@@ -7473,9 +6508,7 @@ async def submit_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if "reply_menu_chat" in record and "reply_menu_id" in record:
             for aid in AUTHORIZED_USERS:
                 try:
-                    await context.bot.delete_message(
-                        record["reply_menu_chat"], record["reply_menu_id"]
-                    )
+                    await context.bot.delete_message(record["reply_menu_chat"], record["reply_menu_id"])
                 except Exception:
                     pass
             record.pop("reply_menu_chat", None)
@@ -7485,28 +6518,14 @@ async def submit_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
         for aid in AUTHORIZED_USERS:
             try:
                 buttons = [
-                    [
-                        InlineKeyboardButton(
-                            "🟦 دعوة فريق GO للنقاش", callback_data=f"team_main_{aid}"
-                        )
-                    ],
-                    [
-                        InlineKeyboardButton(
-                            "🗳 دعوة إبداء رأي",
-                            callback_data=f"team_opinion_{user_id}_{suggestion_id}",
-                        )
-                    ],
+                    [InlineKeyboardButton("🟦 دعوة فريق GO للنقاش", callback_data=f"team_main_{aid}")],
+                    [InlineKeyboardButton("🗳 دعوة إبداء رأي", callback_data=f"team_opinion_{user_id}_{suggestion_id}")],
                 ]
 
                 if aid == admin_id:
                     buttons.insert(
                         0,
-                        [
-                            InlineKeyboardButton(
-                                "✉️ إرسال رد آخر",
-                                callback_data=f"customreply_{user_id}_{suggestion_id}",
-                            )
-                        ],
+                        [InlineKeyboardButton("✉️ إرسال رد آخر", callback_data=f"customreply_{user_id}_{suggestion_id}")]
                     )
 
                 reply_markup = InlineKeyboardMarkup(buttons)
@@ -7515,54 +6534,24 @@ async def submit_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     mtype = media["type"]
                     fid = media["file_id"]
                     if mtype == "photo":
-                        await context.bot.send_photo(
-                            aid,
-                            fid,
-                            caption=admin_caption,
-                            parse_mode=ParseMode.MARKDOWN,
-                            reply_markup=reply_markup,
-                        )
+                        await context.bot.send_photo(aid, fid, caption=admin_caption, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                     elif mtype == "video":
-                        await context.bot.send_video(
-                            aid,
-                            fid,
-                            caption=admin_caption,
-                            parse_mode=ParseMode.MARKDOWN,
-                            reply_markup=reply_markup,
-                        )
+                        await context.bot.send_video(aid, fid, caption=admin_caption, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                     elif mtype == "document":
-                        await context.bot.send_document(
-                            aid,
-                            fid,
-                            caption=admin_caption,
-                            parse_mode=ParseMode.MARKDOWN,
-                            reply_markup=reply_markup,
-                        )
+                        await context.bot.send_document(aid, fid, caption=admin_caption, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                     elif mtype == "voice":
-                        await context.bot.send_voice(
-                            aid,
-                            fid,
-                            caption=admin_caption,
-                            parse_mode=ParseMode.MARKDOWN,
-                            reply_markup=reply_markup,
-                        )
+                        await context.bot.send_voice(aid, fid, caption=admin_caption, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                 else:
                     try:
                         with open("GO-NOW.PNG", "rb") as image:
-                            await context.bot.send_photo(
-                                aid,
-                                image,
-                                caption=admin_caption,
-                                parse_mode=ParseMode.MARKDOWN,
-                                reply_markup=reply_markup,
-                            )
+                            await context.bot.send_photo(aid, image, caption=admin_caption, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                     except Exception:
                         await context.bot.send_message(
                             aid,
                             text=admin_caption,
                             parse_mode=ParseMode.MARKDOWN,
                             reply_markup=reply_markup,
-                            disable_web_page_preview=True,
+                            disable_web_page_preview=True
                         )
 
             except Exception as e:
@@ -7579,12 +6568,9 @@ async def submit_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 pass
         logging.error(f"[رد مخصص] فشل في إرسال الرد للمستخدم {user_id}: {e}")
         try:
-            await query.answer(
-                "❌ حصل خطأ أثناء إرسال الرد. جرّب مرة أخرى.", show_alert=True
-            )
+            await query.answer("❌ حصل خطأ أثناء إرسال الرد. جرّب مرة أخرى.", show_alert=True)
         except Exception:
             pass
-
 
 async def handle_control_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -7599,27 +6585,11 @@ async def handle_control_panel(update: Update, context: ContextTypes.DEFAULT_TYP
     keyboard = [
         [InlineKeyboardButton("👤 المشرفون", callback_data="admins_menu")],
         [InlineKeyboardButton("🧹 تنظيف الجلسات", callback_data="clear_sessions")],
-        [
-            InlineKeyboardButton(
-                "♻️ إعادة تحميل الإعدادات", callback_data="reload_settings"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🚧 تفعيل وضع الصيانة", callback_data="ctrl_maintenance_on"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "✅ إنهاء وضع الصيانة", callback_data="ctrl_maintenance_off"
-            )
-        ],
+        [InlineKeyboardButton("♻️ إعادة تحميل الإعدادات", callback_data="reload_settings")],
+        [InlineKeyboardButton("🚧 تفعيل وضع الصيانة", callback_data="ctrl_maintenance_on")],
+        [InlineKeyboardButton("✅ إنهاء وضع الصيانة", callback_data="ctrl_maintenance_off")],
         [InlineKeyboardButton("🧨 تدمير البيانات", callback_data="self_destruct")],
-        [
-            InlineKeyboardButton(
-                "🔁 إعادة تشغيل الجلسة", callback_data="restart_session"
-            )
-        ],
+        [InlineKeyboardButton("🔁 إعادة تشغيل الجلسة", callback_data="restart_session")],
         [InlineKeyboardButton("💾 النسخ الاحتياطي الآن", callback_data="ctrl_backup")],
         [InlineKeyboardButton("🚪 خروج", callback_data="exit_control")],
     ]
@@ -7627,9 +6597,8 @@ async def handle_control_panel(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text(
         "🎛️ *لوحة التحكم الخاصة بالمشرفين*\n\nيرجى اختيار الإجراء المطلوب:",
         reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode=ParseMode.MARKDOWN,
+        parse_mode=ParseMode.MARKDOWN
     )
-
 
 # ✅ معالجة الضغط على أزرار الصيانة
 async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -7647,9 +6616,7 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
         await context.bot.send_message(
             chat_id=user_id,
             text="⚠️ تم تفعيل وضع الصيانة.\nلن يستطيع المستخدمون استخدام الخدمات مؤقتًا.",
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]]
-            ),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]])
         )
         return
 
@@ -7661,66 +6628,32 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
             text="✅ تم إنهاء وضع الصيانة.\nيمكن للمستخدمين استخدام الخدمات الآن.",
             reply_markup=InlineKeyboardMarkup(
                 [[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]]
-            ),
+            )
         )
         return
 
     # ✅ نسخ احتياطي يدوي من لوحة التحكم
     if action == "ctrl_backup":
-        await query.answer(
-            "⏳ يتم الآن إنشاء نسخة احتياطية للبيانات...", show_alert=True
-        )
-        await create_excel_backup(
-            reason="manual", context=context, notify_chat_id=user_id
-        )
+        await query.answer("⏳ يتم الآن إنشاء نسخة احتياطية للبيانات...", show_alert=True)
+        await create_excel_backup(reason="manual", context=context, notify_chat_id=user_id)
         return
 
     # باقي الإجراءات كما هي
     if action == "control_back":
         await query.message.edit_text(
             "🛠️ *لوحة التحكم:*",
-            reply_markup=InlineKeyboardMarkup(
-                [
-                    [InlineKeyboardButton("👤 المشرفون", callback_data="admins_menu")],
-                    [
-                        InlineKeyboardButton(
-                            "🧹 تنظيف الجلسات", callback_data="clear_sessions"
-                        )
-                    ],
-                    [
-                        InlineKeyboardButton(
-                            "♻️ إعادة تحميل الإعدادات", callback_data="reload_settings"
-                        )
-                    ],
-                    [
-                        InlineKeyboardButton(
-                            "🚧 تفعيل وضع الصيانة", callback_data="ctrl_maintenance_on"
-                        )
-                    ],
-                    [
-                        InlineKeyboardButton(
-                            "✅ إنهاء وضع الصيانة", callback_data="ctrl_maintenance_off"
-                        )
-                    ],
-                    [
-                        InlineKeyboardButton(
-                            "🧨 تدمير البيانات", callback_data="self_destruct"
-                        )
-                    ],
-                    [
-                        InlineKeyboardButton(
-                            "🔁 إعادة تشغيل الجلسة", callback_data="restart_session"
-                        )
-                    ],
-                    [
-                        InlineKeyboardButton(
-                            "💾 النسخ الاحتياطي الآن", callback_data="ctrl_backup"
-                        )
-                    ],
-                    [InlineKeyboardButton("🚪 خروج", callback_data="exit_control")],
-                ]
-            ),
-            parse_mode=constants.ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("👤 المشرفون", callback_data="admins_menu")],
+                [InlineKeyboardButton("🧹 تنظيف الجلسات", callback_data="clear_sessions")],
+                [InlineKeyboardButton("♻️ إعادة تحميل الإعدادات", callback_data="reload_settings")],
+                [InlineKeyboardButton("🚧 تفعيل وضع الصيانة", callback_data="ctrl_maintenance_on")],
+                [InlineKeyboardButton("✅ إنهاء وضع الصيانة", callback_data="ctrl_maintenance_off")],
+                [InlineKeyboardButton("🧨 تدمير البيانات", callback_data="self_destruct")],
+                [InlineKeyboardButton("🔁 إعادة تشغيل الجلسة", callback_data="restart_session")],
+                [InlineKeyboardButton("💾 النسخ الاحتياطي الآن", callback_data="ctrl_backup")],
+                [InlineKeyboardButton("🚪 خروج", callback_data="exit_control")]
+            ]),
+            parse_mode=constants.ParseMode.MARKDOWN
         )
         return
 
@@ -7742,31 +6675,21 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
 
     if query.data == "self_destruct":
         if user_id == 1543083749:
-            await query.answer(
-                "💣 لاتملك هذي الصلاحية  (تدمير البيانات).", show_alert=True
-            )
+            await query.answer("💣 لاتملك هذي الصلاحية  (تدمير البيانات).", show_alert=True)
         else:
-            await query.answer(
-                "🚫 أنت لا تملك الصلاحية لتنفيذ هذا الإجراء.", show_alert=True
-            )
+            await query.answer("🚫 أنت لا تملك الصلاحية لتنفيذ هذا الإجراء.", show_alert=True)
         return
 
     if query.data == "admins_menu":
         await query.message.edit_text(
             "👤 *إدارة المشرفين: اختر الإجراء المطلوب*",
-            reply_markup=InlineKeyboardMarkup(
-                [
-                    [
-                        InlineKeyboardButton(
-                            "📑 عرض المشرفين", callback_data="list_admins"
-                        )
-                    ],
-                    [InlineKeyboardButton("➕ إضافة مشرف", callback_data="add_admin")],
-                    [InlineKeyboardButton("🗑️ حذف مشرف", callback_data="delete_admin")],
-                    [InlineKeyboardButton("⬅️ عودة", callback_data="control_back")],
-                ]
-            ),
-            parse_mode=constants.ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📑 عرض المشرفين", callback_data="list_admins")],
+                [InlineKeyboardButton("➕ إضافة مشرف", callback_data="add_admin")],
+                [InlineKeyboardButton("🗑️ حذف مشرف", callback_data="delete_admin")],
+                [InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]
+            ]),
+            parse_mode=constants.ParseMode.MARKDOWN
         )
         return
 
@@ -7775,20 +6698,15 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
             # تحميل آخر نسخة حديثة من شيت managers فورياً
             try:
                 df_admins_local = pd.read_excel("bot_data.xlsx", sheet_name="managers")
-            except Exception as e:
-                logging.warning(
-                    f"[ADMINS] failed to load managers sheet, using memory fallback: {e}"
-                )
-                df_admins_local = globals().get("df_admins")
-                if df_admins_local is None:
-                    df_admins_local = pd.DataFrame(columns=["manager_id"])
+            except Exception:
+                df_admins_local = globals().get("df_admins", pd.DataFrame(columns=["manager_id"]))  # نسخة fallback
 
             if df_admins_local is None or df_admins_local.empty:
                 await query.message.edit_text(
                     "⚠️ لا يوجد مشرفون مسجلون حالياً.",
                     reply_markup=InlineKeyboardMarkup(
                         [[InlineKeyboardButton("⬅️ عودة", callback_data="admins_menu")]]
-                    ),
+                    )
                 )
                 return
 
@@ -7806,14 +6724,14 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
                 except Exception:
                     name = "❓ غير معروف"
 
-                rows.append(f"{i + 1}. {name}\n🆔 `{id_}`")
+                rows.append(f"{i+1}. {name}\n🆔 `{id_}`")
 
             if not rows:
                 await query.message.edit_text(
                     "⚠️ لم يتم العثور على مشرفين.",
                     reply_markup=InlineKeyboardMarkup(
                         [[InlineKeyboardButton("⬅️ عودة", callback_data="admins_menu")]]
-                    ),
+                    )
                 )
                 return
 
@@ -7822,7 +6740,7 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
                 parse_mode=constants.ParseMode.MARKDOWN,
                 reply_markup=InlineKeyboardMarkup(
                     [[InlineKeyboardButton("⬅️ عودة", callback_data="admins_menu")]]
-                ),
+                )
             )
 
         except Exception as e:
@@ -7844,9 +6762,7 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
         await query.answer("🧼 تم تنفيذ التنظيف", show_alert=False)
         await query.message.edit_text(
             f"🧹 تم تنظيف الجلسات المؤقتة.\n📌 عدد الرسائل المحذوفة: {removed_count}",
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]]
-            ),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]])
         )
         return
 
@@ -7856,33 +6772,20 @@ async def handle_control_buttons(update: Update, context: ContextTypes.DEFAULT_T
             AUTHORIZED_USERS.clear()
             for _, row in df_admins.iterrows():
                 AUTHORIZED_USERS.append(int(row["manager_id"]))
-            await query.message.edit_text(
-                "✅ تم إعادة تحميل ملف الإعدادات وتحديث البيانات.",
-                reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]]
-                ),
-            )
+            await query.message.edit_text("✅ تم إعادة تحميل ملف الإعدادات وتحديث البيانات.",
+                                          reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]]))
         except Exception as e:
-            await query.message.edit_text(
-                f"❌ حدث خطأ أثناء تحميل الإعدادات:\n{e}",
-                reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]]
-                ),
-            )
+            await query.message.edit_text(f"❌ حدث خطأ أثناء تحميل الإعدادات:\n{e}",
+                                          reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]]))
         return
 
     if query.data == "restart_session":
         context.user_data.clear()
         context.bot_data.clear()
         await query.answer("🔁 تم إعادة تشغيل الجلسة بنجاح.", show_alert=True)
-        await query.message.edit_text(
-            "♻️ تم تفريغ جميع بيانات الجلسة.",
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]]
-            ),
-        )
+        await query.message.edit_text("♻️ تم تفريغ جميع بيانات الجلسة.",
+                                      reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ عودة", callback_data="control_back")]]))
         return
-
 
 async def handle_rating(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -7898,7 +6801,6 @@ async def handle_rating(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # فقط باراميترين
     await show_statistics(update, context)
-
 
 async def save_rating(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global RATED_USERS
@@ -7948,10 +6850,7 @@ async def save_rating(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # لو ما زالت البيانات غير واضحة، ونفس رسالة التقييم جايه من مجموعة، نستخدم عنوان المجموعة
     chat = query.message.chat if query.message else None
     if (
-        (
-            group_name in ["غير معروف", None, "خاص"]
-            or group_id in ["غير معروف", None, user_id]
-        )
+        (group_name in ["غير معروف", None, "خاص"] or group_id in ["غير معروف", None, user_id])
         and chat is not None
         and chat.type != "private"
     ):
@@ -7975,22 +6874,13 @@ async def save_rating(update: Update, context: ContextTypes.DEFAULT_TYPE):
             df_ratings = pd.read_excel(ratings_file, sheet_name="ratings")
         except Exception:
             df_ratings = pd.DataFrame(
-                columns=[
-                    "user_id",
-                    "name",
-                    "rating",
-                    "timestamp",
-                    "group_name",
-                    "group_id",
-                ]
+                columns=["user_id", "name", "rating", "timestamp", "group_name", "group_id"]
             )
 
         # ✅ توحيد نوع user_id داخل df_ratings
         if not df_ratings.empty and "user_id" in df_ratings.columns:
             try:
-                df_ratings["user_id"] = pd.to_numeric(
-                    df_ratings["user_id"], errors="coerce"
-                )
+                df_ratings["user_id"] = pd.to_numeric(df_ratings["user_id"], errors="coerce")
             except Exception:
                 pass
 
@@ -7998,9 +6888,7 @@ async def save_rating(update: Update, context: ContextTypes.DEFAULT_TYPE):
         already_rated = False
         if not df_ratings.empty and "user_id" in df_ratings.columns:
             try:
-                already_rated = (
-                    int(user_id) in df_ratings["user_id"].dropna().astype(int).tolist()
-                )
+                already_rated = int(user_id) in df_ratings["user_id"].dropna().astype(int).tolist()
             except Exception:
                 already_rated = False
 
@@ -8033,13 +6921,9 @@ async def save_rating(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text="🔙 تم تسجيل تقييمك سابقًا، وهذه قائمة خدمات GO:",
                     reply_markup=main_keyboard,
                 )
-                register_message(
-                    user_id, msg.message_id, query.message.chat_id, context
-                )
+                register_message(user_id, msg.message_id, query.message.chat_id, context)
             except Exception as e:
-                logging.warning(
-                    f"[RATING] فشل إرسال قائمة الخدمات بعد اكتشاف تقييم سابق: {e}"
-                )
+                logging.warning(f"[RATING] فشل إرسال قائمة الخدمات بعد اكتشاف تقييم سابق: {e}")
 
             # تنبيه منبثق بالنص الكامل
             alert_text = (
@@ -8051,9 +6935,7 @@ async def save_rating(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # ✅ مستخدم جديد في التقييم → نضيفه إلى الإكسل
-        df_ratings = pd.concat(
-            [df_ratings, pd.DataFrame([rating_entry])], ignore_index=True
-        )
+        df_ratings = pd.concat([df_ratings, pd.DataFrame([rating_entry])], ignore_index=True)
 
         # تحديث قائمة المقيمين في الذاكرة
         RATED_USERS.add(user_id)
@@ -8061,7 +6943,10 @@ async def save_rating(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # حفظ التقييم في الخلفية بدون تجميد البوت
         async with EXCEL_LOCK:
             await asyncio.to_thread(
-                write_excel_background, ratings_file, df_ratings, "ratings"
+                write_excel_background,
+                ratings_file,
+                df_ratings,
+                "ratings"
             )
 
         # محاولة حذف رسالة أزرار التقييم القديمة
@@ -8095,13 +6980,7 @@ async def save_rating(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         back_keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}"
-                    )
-                ]
-            ]
+            [[InlineKeyboardButton("⬅️ رجوع للقائمة الرئيسية", callback_data=f"back_main_{user_id}")]]
         )
 
         msg = await context.bot.send_message(
@@ -8137,7 +7016,6 @@ async def save_rating(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logging.error(f"[RATING] ❌ فشل في حفظ التقييم: {e}", exc_info=True)
         await query.answer("⚠️ حدث خطأ أثناء حفظ التقييم، حاول لاحقًا.", show_alert=True)
 
-
 async def handle_add_admin_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     message = update.message
@@ -8160,31 +7038,22 @@ async def handle_add_admin_id(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # ✅ إضافة إلى القائمة الحالية
     AUTHORIZED_USERS.append(new_admin_id)
-    df_admins = pd.concat(
-        [df_admins, pd.DataFrame([{"manager_id": new_admin_id}])], ignore_index=True
-    )
+    df_admins = pd.concat([df_admins, pd.DataFrame([{"manager_id": new_admin_id}])], ignore_index=True)
 
     # ✅ حفظ التغييرات في الملف Excel
     try:
         # قفل الكتابة على ملف الإكسل قبل تعديل شيت managers
         async with EXCEL_LOCK:
-            with pd.ExcelWriter(
-                "bot_data.xlsx", engine="openpyxl", mode="a", if_sheet_exists="replace"
-            ) as writer:
+            with pd.ExcelWriter("bot_data.xlsx", engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
                 df_admins.to_excel(writer, sheet_name="managers", index=False)
 
-        await message.reply_text(
-            f"✅ تم إضافة المشرف بنجاح: `{new_admin_id}`", parse_mode=ParseMode.MARKDOWN
-        )
+        await message.reply_text(f"✅ تم إضافة المشرف بنجاح: `{new_admin_id}`", parse_mode=ParseMode.MARKDOWN)
 
     except Exception as e:
         await message.reply_text(f"❌ حدث خطأ أثناء حفظ التغييرات:\n{e}")
 
     # 🧼 مسح الحالة
     context.user_data[user_id]["action"] = None
-
-
-# ===== إصلاح نظام اختيار المجموعات للتوصية الفنية =====
 
 
 def _prepare_reco_targets_for_admin(admin_id: int, context: ContextTypes.DEFAULT_TYPE):
@@ -8200,19 +7069,13 @@ def _prepare_reco_targets_for_admin(admin_id: int, context: ContextTypes.DEFAULT
     for cid in targets:
         title = None
         try:
-            if (
-                df_group_logs is not None
-                and not df_group_logs.empty
-                and "chat_id" in df_group_logs.columns
-            ):
+            if df_group_logs is not None and not df_group_logs.empty and "chat_id" in df_group_logs.columns:
                 mask = df_group_logs["chat_id"].astype(str) == str(cid)
                 row = df_group_logs[mask]
                 if not row.empty:
                     title = str(row.iloc[0].get("title") or "").strip()
         except Exception as e:
-            logging.warning(
-                f"[RECO TARGETS] فشل قراءة اسم المجموعة {cid} من df_group_logs: {e}"
-            )
+            logging.warning(f"[RECO TARGETS] فشل قراءة اسم المجموعة {cid} من df_group_logs: {e}")
 
         if not title:
             title = f"مجموعة {cid}"
@@ -8223,23 +7086,18 @@ def _prepare_reco_targets_for_admin(admin_id: int, context: ContextTypes.DEFAULT
     ud["reco_selected"] = ud.get("reco_selected") or []
     ud["reco_page"] = 0
 
-    logging.info(
-        f"[RECO GROUPS] للمشرف {admin_id}: عدد المجموعات المتاحة للبث = {len(groups)}"
-    )
-
+    logging.info(f"[RECO GROUPS] للمشرف {admin_id}: عدد المجموعات المتاحة للبث = {len(groups)}")
 
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("go", start))
-application.add_handler(
-    MessageHandler(filters.TEXT & filters.Regex(r"(?i)^go$"), handle_go_text)
-)
+application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"(?i)^go$"), handle_go_text))
 application.add_handler(CommandHandler("go25s", handle_control_panel))
 
 # ✅ أوامر لوحة التحكم العامة + إشعار التحديث + وضع الصيانة
 application.add_handler(
     CallbackQueryHandler(
         handle_control_buttons,
-        pattern="^(ctrl_maintenance_on|ctrl_maintenance_off|reload_settings|add_admin|list_admins|clear_sessions|self_destruct|control_back|admins_menu|restart_session|delete_admin|broadcast_update|ctrl_backup|exit_control)$",
+        pattern="^(ctrl_maintenance_on|ctrl_maintenance_off|reload_settings|add_admin|list_admins|clear_sessions|self_destruct|control_back|admins_menu|restart_session|delete_admin|broadcast_update|ctrl_backup|exit_control)$"
     )
 )
 
@@ -8247,79 +7105,43 @@ application.add_handler(
 application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_message))
 
 # ✅ نظام الاقتراحات (إرسال + ردود سريعة + رد مخصص)
-application.add_handler(
-    CallbackQueryHandler(send_suggestion, pattern=r"^send_suggestion$")
-)
+application.add_handler(CallbackQueryHandler(send_suggestion, pattern=r"^send_suggestion$"))
 # ✅ نقاشات فريق GO الداخلية
-application.add_handler(
-    CallbackQueryHandler(start_team_general_thread, pattern=r"^team_main_\d+$")
-)
+application.add_handler(CallbackQueryHandler(start_team_general_thread, pattern=r"^team_main_\d+$"))
 # ✅ إرسال توصية فنية عامة للمجموعات
 # ✅ إرسال توصية فنية عامة للمجموعات
 # ✅ إرسال توصية فنية عامة للمجموعات
-application.add_handler(
-    CallbackQueryHandler(start_recommendation, pattern=r"^send_reco$")
-)
-application.add_handler(
-    CallbackQueryHandler(broadcast_recommendation, pattern=r"^reco_broadcast(_all)?$")
-)
-application.add_handler(
-    CallbackQueryHandler(cancel_recommendation, pattern=r"^reco_cancel$")
-)
+application.add_handler(CallbackQueryHandler(start_recommendation, pattern=r"^send_reco$"))
+application.add_handler(CallbackQueryHandler(broadcast_recommendation, pattern=r"^reco_broadcast(_all)?$"))
+application.add_handler(CallbackQueryHandler(cancel_recommendation, pattern=r"^reco_cancel$"))
 
 # ✅ اختيار المجموعات يدوياً للتوصية + التثبيت
-application.add_handler(
-    CallbackQueryHandler(show_reco_groups, pattern=r"^reco_select$")
-)
-application.add_handler(
-    CallbackQueryHandler(toggle_reco_group, pattern=r"^reco_tgl_-?\d+$")
-)
-application.add_handler(
-    CallbackQueryHandler(change_reco_page, pattern=r"^reco_page_(prev|next)$")
-)
-application.add_handler(
-    CallbackQueryHandler(toggle_reco_pin, pattern=r"^reco_pin_toggle$")
-)
+application.add_handler(CallbackQueryHandler(show_reco_groups, pattern=r"^reco_select$"))
+application.add_handler(CallbackQueryHandler(toggle_reco_group, pattern=r"^reco_tgl_-?\d+$"))
+application.add_handler(CallbackQueryHandler(change_reco_page, pattern=r"^reco_page_(prev|next)$"))
+application.add_handler(CallbackQueryHandler(toggle_reco_pin, pattern=r"^reco_pin_toggle$"))
 
-application.add_handler(
-    CallbackQueryHandler(start_team_opinion_thread, pattern=r"^team_opinion_\d+_.+$")
-)
-application.add_handler(
-    CallbackQueryHandler(team_reply_existing_thread, pattern=r"^team_reply_\d+$")
-)
+application.add_handler(CallbackQueryHandler(start_team_opinion_thread, pattern=r"^team_opinion_\d+_.+$"))
+application.add_handler(CallbackQueryHandler(team_reply_existing_thread, pattern=r"^team_reply_\d+$"))
 
 application.add_handler(
     CallbackQueryHandler(handle_suggestion_reply, pattern=r"^reply(?:ready)?_\d+_.+$")
 )
-application.add_handler(
-    CallbackQueryHandler(handle_send_reply, pattern=r"^sendreply_[a-zA-Z0-9]+_\d+_.+$")
-)
-application.add_handler(
-    CallbackQueryHandler(handle_custom_reply, pattern=r"^customreply_\d+_.+$")
-)
-application.add_handler(
-    CallbackQueryHandler(submit_admin_reply, pattern=r"^submit_admin_reply$")
-)
+application.add_handler(CallbackQueryHandler(handle_send_reply, pattern=r"^sendreply_[a-zA-Z0-9]+_\d+_.+$"))
+application.add_handler(CallbackQueryHandler(handle_custom_reply, pattern=r"^customreply_\d+_.+$"))
+application.add_handler(CallbackQueryHandler(submit_admin_reply, pattern=r"^submit_admin_reply$"))
 
 # ✅ التقييم
 application.add_handler(CallbackQueryHandler(show_statistics, pattern=r"^rate_\d+$"))
-application.add_handler(
-    CallbackQueryHandler(save_rating, pattern=r"^ratingval_\d+_\d+$")
-)
+application.add_handler(CallbackQueryHandler(save_rating, pattern=r"^ratingval_\d+_\d+$"))
 
 # ✅ الصيانة وقطع الغيار
 application.add_handler(CallbackQueryHandler(car_choice, pattern=r"^car_.*_\d+$"))
-application.add_handler(
-    CallbackQueryHandler(maintenance_brand_choice, pattern=r"^mbrand_.*_\d+$")
-)
-application.add_handler(
-    CallbackQueryHandler(parts_brand_choice, pattern=r"^pbrand_.*_\d+$")
-)
+application.add_handler(CallbackQueryHandler(maintenance_brand_choice, pattern=r"^mbrand_.*_\d+$"))
+application.add_handler(CallbackQueryHandler(parts_brand_choice, pattern=r"^pbrand_.*_\d+$"))
 application.add_handler(CallbackQueryHandler(km_choice, pattern=r"^km_.*_\d+$"))
 application.add_handler(CallbackQueryHandler(send_cost, pattern=r"^cost_\d+_\d+$"))
-application.add_handler(
-    CallbackQueryHandler(send_part_image, pattern=r"^part_image_\d+_\d+$")
-)
+application.add_handler(CallbackQueryHandler(send_part_image, pattern=r"^part_image_\d+_\d+$"))
 
 # ✅ أزرار القوائم الخاصة بالصيانة وقطع الغيار والاقتراحات والأعطال + الرجوع
 # ✅ أزرار التصنيف داخل نفس القائمة (تحت كل فئة)
@@ -8329,14 +7151,12 @@ application.add_handler(CallbackQueryHandler(button, pattern=r"^catpart_.*_\d+$"
 application.add_handler(
     CallbackQueryHandler(
         button,
-        pattern=r"^(parts|maintenance|consumable|external|suggestion|coming|coming_soon)_\d+$",
+        pattern=r"^(parts|maintenance|consumable|external|suggestion|coming|coming_soon)_\d+$"
     )
 )
 
 # ✅ اختيار سيارة للقطع الاستهلاكية + الرجوع لقائمة التصنيفات لنفس السيارة
-application.add_handler(
-    CallbackQueryHandler(select_car_for_parts, pattern=r"^(carpart_|showparts_).*")
-)
+application.add_handler(CallbackQueryHandler(select_car_for_parts, pattern=r"^(carpart_|showparts_).*"))
 
 # الأعطال الشائعة من القائمة الرئيسية
 application.add_handler(CallbackQueryHandler(button, pattern=r"^faults_\d+$"))
@@ -8348,56 +7168,34 @@ application.add_handler(CallbackQueryHandler(button, pattern=r"^back_main_\d+$")
 application.add_handler(CallbackQueryHandler(button, pattern=r"^back:"))
 application.add_handler(CallbackQueryHandler(button, pattern=r"^cancelteam$"))
 
-application.add_handler(
-    CallbackQueryHandler(send_brochure, pattern=r"^brochure_\d+_\d+$")
-)
+application.add_handler(CallbackQueryHandler(send_brochure, pattern=r"^brochure_\d+_\d+$"))
 
 # ✅ دليل المالك
 application.add_handler(CallbackQueryHandler(show_manual_car_list, pattern=r"^manual_"))
-application.add_handler(
-    CallbackQueryHandler(manual_brand_choice, pattern=r"^mnlbrand_.*_\d+$")
-)
-application.add_handler(
-    CallbackQueryHandler(handle_manualcar, pattern=r"^manualcar_.*_\d+$")
-)
+application.add_handler(CallbackQueryHandler(manual_brand_choice, pattern=r"^mnlbrand_.*_\d+$"))
+application.add_handler(CallbackQueryHandler(handle_manualcar, pattern=r"^manualcar_.*_\d+$"))
 application.add_handler(CallbackQueryHandler(handle_manualdfcar, pattern=r"^openpdf_"))
 
 # ✅ المراكز والمتاجر
-application.add_handler(
-    CallbackQueryHandler(handle_service_centers, pattern=r"^service_\d+$")
-)
-application.add_handler(
-    CallbackQueryHandler(handle_branch_list, pattern=r"^branches_\d+$")
-)
-application.add_handler(
-    CallbackQueryHandler(handle_independent, pattern=r"^independent_\d+$")
-)
-application.add_handler(
-    CallbackQueryHandler(show_center_list, pattern=r"^show_centers_\d+$")
-)
-application.add_handler(
-    CallbackQueryHandler(show_store_list, pattern=r"^show_stores_\d+$")
-)
+application.add_handler(CallbackQueryHandler(handle_service_centers, pattern=r"^service_\d+$"))
+application.add_handler(CallbackQueryHandler(handle_branch_list, pattern=r"^branches_\d+$"))
+application.add_handler(CallbackQueryHandler(handle_independent, pattern=r"^independent_\d+$"))
+application.add_handler(CallbackQueryHandler(show_center_list, pattern=r"^show_centers_\d+$"))
+application.add_handler(CallbackQueryHandler(show_store_list, pattern=r"^show_stores_\d+$"))
 application.add_handler(CallbackQueryHandler(set_city, pattern=r"^setcity_.*_\d+$"))
 
 # ✅ زر الإلغاء
 application.add_handler(CallbackQueryHandler(handle_cancel, pattern=r"^cancel_"))
 
 # ✅ زر غير نشط
-application.add_handler(
-    CallbackQueryHandler(
-        lambda u, c: asyncio.create_task(
-            u.callback_query.answer("🚫 هذا الزر غير نشط حالياً.")
-        ),
-        pattern=r"^disabled$",
-    )
-)
-
+application.add_handler(CallbackQueryHandler(
+    lambda u, c: asyncio.create_task(u.callback_query.answer("🚫 هذا الزر غير نشط حالياً.")),
+    pattern=r"^disabled$"
+))
 
 @app.api_route("/", methods=["GET", "HEAD"])
 async def root():
     return {"message": "Bot is alive"}
-
 
 @app.post("/webhook")
 async def webhook_handler(request: Request):
@@ -8409,7 +7207,6 @@ async def webhook_handler(request: Request):
     update = Update.de_json(json_data, application.bot)
     await application.update_queue.put(update)
     return {"ok": True}
-
 
 @app.on_event("startup")
 async def on_startup():
@@ -8434,36 +7231,34 @@ async def on_startup():
             params={"url": webhook_url},
             timeout=10,
         )
-        logging.info(
-            f"🔗 Webhook set to {webhook_url} status={response.status_code} body={response.text}"
-        )
+        logging.info(f"🔗 Webhook set to {webhook_url} status={response.status_code} body={response.text}")
     except Exception as e:
         logging.error(f"❌ Failed to set webhook: {e}")
 
     await application.initialize()
     await application.start()
 
-    # ✅ تفعيل JobQueue (تنظيف الجلسات + health + النسخ الاحتياطي اليومي + keepalive)
+        # ✅ تفعيل JobQueue (تنظيف الجلسات + health + النسخ الاحتياطي اليومي + keepalive)
     if application.job_queue:
         application.job_queue.run_repeating(
             cleanup_old_sessions,
             interval=60 * 60,  # كل ساعة
-            first=60,  # أول تشغيل بعد 60 ثانية من الإقلاع
+            first=60           # أول تشغيل بعد 60 ثانية من الإقلاع
         )
 
         # نبضات صحية دورية داخل الذاكرة فقط
         application.job_queue.run_repeating(
             health_log_job,
             interval=60 * 10,  # كل 10 دقائق
-            first=120,
+            first=120
         )
 
         # 🔁 KEEPALIVE: طلب داخلي للخدمة كل 5 دقائق لإبقائها مستيقظة
         try:
             application.job_queue.run_repeating(
                 keepalive_ping,
-                interval=60 * 5,  # كل 5 دقائق
-                first=180,  # أول تشغيل بعد 3 دقائق من الإقلاع
+                interval=60 * 5,   # كل 5 دقائق
+                first=180,         # أول تشغيل بعد 3 دقائق من الإقلاع
                 name="render_keepalive",
             )
         except Exception as e:
